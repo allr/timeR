@@ -32,6 +32,7 @@
 #include <Fileio.h>
 #include <R_ext/Print.h>
 
+#include "timeR.h"
 
 #define ARGUSED(x) LEVELS(x)
 
@@ -450,6 +451,7 @@ static SEXP forcePromise(SEXP e)
 
 SEXP eval(SEXP e, SEXP rho)
 {
+    BEGIN_TIMER(TR_Eval);
     SEXP op, tmp;
     static int evalcount = 0;
     
@@ -597,6 +599,7 @@ SEXP eval(SEXP e, SEXP rho)
 	    vmaxset(vmax);
 	}
 	else if (TYPEOF(op) == BUILTINSXP) {
+	    BEGIN_TIMER(TR_dotBuiltIn);
 	    int save = R_PPStackTop, flag = PRIMPRINT(op);
 	    const void *vmax = vmaxget();
 	    RCNTXT cntxt;
@@ -625,6 +628,7 @@ SEXP eval(SEXP e, SEXP rho)
 	    UNPROTECT(1);
 	    check_stack_balance(op, save);
 	    vmaxset(vmax);
+	    END_TIMER(TR_dotBuiltIn);
 	}
 	else if (TYPEOF(op) == CLOSXP) {
 	    PROTECT(tmp = promiseArgs(CDR(e), rho));
@@ -642,6 +646,7 @@ SEXP eval(SEXP e, SEXP rho)
     }
     R_EvalDepth = depthsave;
     R_Srcref = srcrefsave;
+    END_TIMER(TR_Eval);
     return (tmp);
 }
 
@@ -847,6 +852,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
 	contains the matched pairs.  Ideally this environment sould be
 	hashed.  */
 
+    BEGIN_TIMER(TR_Match);
     PROTECT(actuals = matchArgs(formals, arglist, call));
     PROTECT(newrho = NewEnvironment(formals, actuals, savedrho));
 
@@ -887,10 +893,14 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
 	}
     }
 
+    END_TIMER(TR_Match);
+
     /*  Terminate the previous context and start a new one with the
 	correct environment. */
 
     endcontext(&cntxt);
+
+    // FIXME: user function timer start was originally here
 
     /*  If we have a generic function we need to use the sysparent of
 	the generic as the sysparent of the method because the method
@@ -906,6 +916,16 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
     
     R_Srcref = getAttrib(op, R_SrcrefSymbol);
     
+    SEXP cursrcref = R_GetCurrentSrcref(0);
+    unsigned int timeR_bin_id = TR_UserFuncFallback;
+
+    if (cursrcref != R_NilValue &&
+        TYPEOF(cursrcref) == INTSXP &&
+        LENGTH(cursrcref) > 8)
+        timeR_bin_id = INTEGER(cursrcref)[8];
+
+    BEGIN_TIMER(timeR_bin_id);
+
     /* The default return value is NULL.  FIXME: Is this really needed
        or do we always get a sensible value returned?  */
 
@@ -967,7 +987,9 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
     /*  Set a longjmp target which will catch any explicit returns
 	from the function body.  */
 
+    MARK_TIMER();
     if ((SETJMP(cntxt.cjmpbuf))) {
+	RELEASE_TIMER();
 	if (R_ReturnedValue == R_RestartToken) {
 	    cntxt.callflag = CTXT_RETURN;  /* turn restart off */
 	    R_ReturnedValue = R_NilValue;  /* remove restart token */
@@ -981,6 +1003,8 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
     }
 
     endcontext(&cntxt);
+
+    END_TIMER(timeR_bin_id);
 
     if (RDEBUG(op)) {
 	Rprintf("exiting from: ");
@@ -1063,7 +1087,9 @@ static SEXP R_execClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho,
     /*  Set a longjmp target which will catch any explicit returns
 	from the function body.  */
 
+    MARK_TIMER();
     if ((SETJMP(cntxt.cjmpbuf))) {
+	RELEASE_TIMER();
 	if (R_ReturnedValue == R_RestartToken) {
 	    cntxt.callflag = CTXT_RETURN;  /* turn restart off */
 	    R_ReturnedValue = R_NilValue;  /* remove restart token */
@@ -1369,7 +1395,11 @@ SEXP attribute_hidden do_for(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     begincontext(&cntxt, CTXT_LOOP, R_NilValue, rho, R_BaseEnv, R_NilValue,
 		 R_NilValue);
-    switch (SETJMP(cntxt.cjmpbuf)) {
+    MARK_TIMER();
+    int res = SETJMP(cntxt.cjmpbuf);
+    if (res)
+	RELEASE_TIMER();
+    switch (res) {
     case CTXT_BREAK: goto for_break;
     case CTXT_NEXT: goto for_next;
     }
@@ -1461,7 +1491,11 @@ SEXP attribute_hidden do_while(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     begincontext(&cntxt, CTXT_LOOP, R_NilValue, rho, R_BaseEnv, R_NilValue,
 		 R_NilValue);
-    if (SETJMP(cntxt.cjmpbuf) != CTXT_BREAK) {
+    MARK_TIMER();
+    int res = SETJMP(cntxt.cjmpbuf);
+    if (res)
+	RELEASE_TIMER();
+    if (res != CTXT_BREAK) {
 	while (asLogicalNoNA(eval(CAR(args), rho), call)) {
 	    DO_LOOP_RDEBUG(call, op, args, rho, bgn);
 	    eval(body, rho);
@@ -1493,7 +1527,11 @@ SEXP attribute_hidden do_repeat(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     begincontext(&cntxt, CTXT_LOOP, R_NilValue, rho, R_BaseEnv, R_NilValue,
 		 R_NilValue);
-    if (SETJMP(cntxt.cjmpbuf) != CTXT_BREAK) {
+    MARK_TIMER();
+    int res = SETJMP(cntxt.cjmpbuf);
+    if (res)
+	RELEASE_TIMER();
+    if (res != CTXT_BREAK) {
 	for (;;) {
 	    DO_LOOP_RDEBUG(call, op, args, rho, bgn);
 	    eval(body, rho);
@@ -2209,9 +2247,11 @@ SEXP attribute_hidden do_eval(SEXP call, SEXP op, SEXP args, SEXP rho)
     if (TYPEOF(expr) == LANGSXP || TYPEOF(expr) == SYMSXP || isByteCode(expr)) {
 	PROTECT(expr);
 	begincontext(&cntxt, CTXT_RETURN, call, env, rho, args, op);
+	MARK_TIMER();
 	if (!SETJMP(cntxt.cjmpbuf))
 	    expr = eval(expr, env);
 	else {
+	    RELEASE_TIMER();
 	    expr = R_ReturnedValue;
 	    if (expr == R_RestartToken) {
 		cntxt.callflag = CTXT_RETURN;  /* turn restart off */
@@ -2228,12 +2268,14 @@ SEXP attribute_hidden do_eval(SEXP call, SEXP op, SEXP args, SEXP rho)
 	n = LENGTH(expr);
 	tmp = R_NilValue;
 	begincontext(&cntxt, CTXT_RETURN, call, env, rho, args, op);
+	MARK_TIMER();
 	if (!SETJMP(cntxt.cjmpbuf))
 	    for(i = 0 ; i < n ; i++) {
 	    	R_Srcref = getSrcref(srcrefs, i); 
 		tmp = eval(VECTOR_ELT(expr, i), env);
 	    }
 	else {
+	    RELEASE_TIMER();
 	    tmp = R_ReturnedValue;
 	    if (tmp == R_RestartToken) {
 		cntxt.callflag = CTXT_RETURN;  /* turn restart off */
@@ -3786,7 +3828,11 @@ static void loopWithContext(volatile SEXP code, volatile SEXP rho)
     RCNTXT cntxt;
     begincontext(&cntxt, CTXT_LOOP, R_NilValue, rho, R_BaseEnv, R_NilValue,
 		 R_NilValue);
-    if (SETJMP(cntxt.cjmpbuf) != CTXT_BREAK)
+    MARK_TIMER();
+    int res = SETJMP(cntxt.cjmpbuf);
+    if (res)
+	RELEASE_TIMER();
+    if (res != CTXT_BREAK)
 	bcEval(code, rho, FALSE);
     endcontext(&cntxt);
 }

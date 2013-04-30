@@ -29,6 +29,8 @@
 #include <R_ext/R-ftp-http.h>
 #include <Rmodules/Rinternet.h>
 
+#include "timeR.h"
+
 static R_InternetRoutines routines, *ptr = &routines;
 
 
@@ -96,10 +98,13 @@ static void internet_Init(void)
 
 SEXP Rdownload(SEXP args)
 {
+    BEGIN_TIMER(TR_Download);
     if(!initialized) internet_Init();
-    if(initialized > 0)
-	return (*ptr->download)(args);
-    else {
+    if(initialized > 0) {
+	SEXP ans = (*ptr->download)(args);
+	END_TIMER(TR_Download);
+	return ans;
+    } else {
 	error(_("internet routines cannot be loaded"));
 	return R_NilValue;
     }

@@ -82,6 +82,8 @@
 #include <R_ext/GraphicsEngine.h> /* GEDevDesc, GEgetDevice */
 #include <R_ext/Rdynload.h>
 
+#include "timeR.h"
+
 #if defined(Win32) && defined(LEA_MALLOC)
 /*#include <stddef.h> */
 extern void *Rm_malloc(size_t n);
@@ -1339,6 +1341,7 @@ static Rboolean RunFinalizers(void)
 	    saveToplevelContext = R_ToplevelContext;
 	    PROTECT(topExp = R_CurrentExpr);
 	    savestack = R_PPStackTop;
+            MARK_TIMER();
 	    if (! SETJMP(thiscontext.cjmpbuf)) {
 		R_GlobalContext = R_ToplevelContext = &thiscontext;
 
@@ -1356,7 +1359,8 @@ static Rboolean RunFinalizers(void)
 		PROTECT(next);
 		R_RunWeakRefFinalizer(s);
 		UNPROTECT(1);
-	    }
+	    } else
+              RELEASE_TIMER();
 	    endcontext(&thiscontext);
 	    R_ToplevelContext = saveToplevelContext;
 	    R_PPStackTop = savestack;
@@ -2124,6 +2128,7 @@ static SEXP allocSExpNonCons(SEXPTYPE t)
    unless a GC will actually occur. */
 SEXP cons(SEXP car, SEXP cdr)
 {
+    BEGIN_TIMER(TR_cons);
     SEXP s;
     if (FORCE_GC || NO_FREE_NODES()) {
 	PROTECT(car);
@@ -2145,6 +2150,7 @@ SEXP cons(SEXP car, SEXP cdr)
     CDR(s) = CHK(cdr);
     TAG(s) = R_NilValue;
     ATTRIB(s) = R_NilValue;
+    END_TIMER(TR_cons);
     return s;
 }
 
@@ -2395,6 +2401,7 @@ SEXP allocVector(SEXPTYPE type, R_xlen_t length)
 	      type2char(type), length);
     }
 
+    BEGIN_TIMER(TR_allocVector); // FIXME: r-timed compatible position, seems weird though
     if (size <= NodeClassSize[1]) {
 	node_class = 1;
 	alloc_size = NodeClassSize[1];
@@ -2550,6 +2557,7 @@ SEXP allocVector(SEXPTYPE type, R_xlen_t length)
     else if (type == RAWSXP)
 	VALGRIND_MAKE_WRITABLE(RAW(s), actual_size);
 #endif
+    END_TIMER(TR_allocVector);
     return s;
 }
 
@@ -2562,19 +2570,23 @@ SEXP attribute_hidden allocCharsxp(R_len_t len)
 
 SEXP allocList(int n)
 {
+    BEGIN_TIMER(TR_allocList);
     int i;
     SEXP result;
     result = R_NilValue;
     for (i = 0; i < n; i++)
 	result = CONS(R_NilValue, result);
+    END_TIMER(TR_allocList);
     return result;
 }
 
 SEXP allocS4Object(void)
 {
+   BEGIN_TIMER(TR_allocS4);
    SEXP s;
    GC_PROT(s = allocSExpNonCons(S4SXP));
    SET_S4_OBJECT(s);
+   END_TIMER(TR_allocS4);
    return s;
 }
 
@@ -2647,6 +2659,7 @@ static void gc_end_timing(void)
 
 static void R_gc_internal(R_size_t size_needed)
 {
+    BEGIN_TIMER(TR_GCInternal);
     R_size_t onsize = R_NSize /* can change during collection */;
     double ncells, vcells, vfrac, nfrac;
     Rboolean first = TRUE;
@@ -2731,6 +2744,7 @@ static void R_gc_internal(R_size_t size_needed)
 	      first_bad_sexp_type_line);
 #endif
     }
+    END_TIMER(TR_GCInternal);
 }
 
 SEXP attribute_hidden do_memlimits(SEXP call, SEXP op, SEXP args, SEXP env)
@@ -2816,6 +2830,7 @@ static void reset_pp_stack(void *data)
 
 SEXP protect(SEXP s)
 {
+    BEGIN_TIMER(TR_Protect);
     if (R_PPStackTop >= R_PPStackSize) {
 	RCNTXT cntxt;
 	int oldpps = R_PPStackSize;
@@ -2832,6 +2847,7 @@ SEXP protect(SEXP s)
 	endcontext(&cntxt); /* not reached */
     }
     R_PPStack[R_PPStackTop++] = CHK(s);
+    END_TIMER(TR_Protect);
     return s;
 }
 
@@ -2851,6 +2867,7 @@ void unprotect(int l)
 
 void unprotect_ptr(SEXP s)
 {
+    BEGIN_TIMER(TR_UnprotectPtr);
     int i = R_PPStackTop;
 
     /* go look for  s  in  R_PPStack */
@@ -2866,6 +2883,7 @@ void unprotect_ptr(SEXP s)
     while (++i < R_PPStackTop) R_PPStack[i - 1] = R_PPStack[i];
 
     R_PPStackTop--;
+    END_TIMER(TR_UnprotectPtr);
 }
 
 /* Debugging function:  is s protected? */

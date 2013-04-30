@@ -34,6 +34,8 @@
 #include <ctype.h>		/* for isspace */
 #include <stdarg.h>
 
+#include "timeR.h"
+
 /* From time to time changes in R, such as the addition of a new SXP,
  * may require changes in the save file format.  Here are some
  * guidelines on handling format changes:
@@ -1690,6 +1692,37 @@ static SEXP ReadItem (SEXP ref_table, R_inpstream_t stream)
 	}
 	else
 	    SET_ATTRIB(s, hasattr ? ReadItem(ref_table, stream) : R_NilValue);
+
+        /* check for source references with bin ID */
+        if (TYPEOF(s) == INTSXP && hasattr && objf) {
+            SEXP cl = getAttrib(s, R_ClassSymbol); // STRSXP
+
+            // FIXME: Check more than one element if available?
+            // FIXME: This feels like a very bad way of coding this
+            if (streql(CHAR(STRING_ELT(cl, 0)), CHAR(PRINTNAME(R_SrcrefSymbol))) &&
+                LENGTH(s) > 8) {
+                /* create a new bin ID */
+                INTEGER(s)[8] = timeR_add_userfn_bin();
+
+                // FIXME: Semiduplicated from gram.y:getSrcFileName
+                const char *srcfilename = "(deserialized)";
+
+                SEXP srcfile = getAttrib(s, R_SrcfileSymbol);
+                if (isEnvironment(srcfile)) {
+                    static SEXP filename_symbol;
+                    if (filename_symbol == NULL)
+                        filename_symbol = install("filename");
+
+                    SEXP filename = findVar(filename_symbol, srcfile);
+                    if (isString(filename) && length(filename))
+                        srcfilename = CHAR(STRING_ELT(filename, 0));
+                }
+
+                timeR_name_bin_anonfunc(INTEGER(s)[8], srcfilename,
+                                        INTEGER(s)[0], INTEGER(s)[4]);
+            }
+        }
+
 	UNPROTECT(1); /* s */
 	return s;
     }

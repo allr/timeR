@@ -153,6 +153,7 @@ void R_DefParams(Rstart Rp)
     Rp->LoadSiteFile = TRUE;
     Rp->LoadInitFile = TRUE;
     Rp->DebugInitFile = FALSE;
+    Rp->InputFileName = NULL;
     Rp->vsize = R_VSIZE;
     Rp->nsize = R_NSIZE;
     Rp->max_vsize = R_SIZE_T_MAX;
@@ -228,6 +229,7 @@ void R_SetParams(Rstart Rp)
     LoadSiteFile = Rp->LoadSiteFile;
     LoadInitFile = Rp->LoadInitFile;
     DebugInitFile = Rp->DebugInitFile;
+    R_InputFileName = Rp->InputFileName;
     SetSize(Rp->vsize, Rp->nsize);
     R_SetMaxNSize(Rp->max_nsize);
     R_SetMaxVSize(Rp->max_vsize);

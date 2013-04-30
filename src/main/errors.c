@@ -32,6 +32,8 @@
 #include <Rmath.h> /* for imax2 */
 #include <R_ext/Print.h>
 
+#include "timeR.h"
+
 #ifndef min
 #define min(a, b) (a<b?a:b)
 #endif
@@ -76,6 +78,7 @@ static void reset_stack_limit(void *data)
 
 void R_CheckStack(void)
 {
+    BEGIN_TIMER(TR_CheckStack);
     int dummy;
     intptr_t usage = R_CStackDir * (R_CStackStart - (uintptr_t)&dummy);
 
@@ -95,6 +98,7 @@ void R_CheckStack(void)
 	errorcall(R_NilValue, "C stack usage is too close to the limit");
 	/* Do not translate this, to save stack space */
     }
+    END_TIMER(TR_CheckStack);
 }
 
 void R_CheckStack2(size_t extra)

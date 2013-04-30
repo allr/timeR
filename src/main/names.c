@@ -33,6 +33,8 @@
 
 #include <Rinterface.h>
 
+#include "timeR.h"
+
 /* Table of  .Internal(.) and .Primitive(.)  R functions
  * =====     =========	      ==========
  *
@@ -1088,6 +1090,7 @@ void attribute_hidden InitNames()
 
 SEXP install(const char *name)
 {
+    BEGIN_TIMER(TR_Install);
     SEXP sym;
     int i, hashcode;
 
@@ -1099,12 +1102,16 @@ SEXP install(const char *name)
     i = hashcode % HSIZE;
     /* Check to see if the symbol is already present;  if it is, return it. */
     for (sym = R_SymbolTable[i]; sym != R_NilValue; sym = CDR(sym))
-	if (strcmp(name, CHAR(PRINTNAME(CAR(sym)))) == 0) return (CAR(sym));
+	if (strcmp(name, CHAR(PRINTNAME(CAR(sym)))) == 0) {
+	    END_TIMER(TR_Install);
+	    return (CAR(sym));
+	}
     /* Create a new symbol node and link it into the table. */
     sym = mkSYMSXP(mkChar(name), R_UnboundValue);
     SET_HASHVALUE(PRINTNAME(sym), hashcode);
     SET_HASHASH(PRINTNAME(sym), 1);
     R_SymbolTable[i] = CONS(sym, R_SymbolTable[i]);
+    END_TIMER(TR_Install);
     return (sym);
 }
 
@@ -1113,6 +1120,7 @@ SEXP install(const char *name)
 
 SEXP attribute_hidden do_internal(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_dotSpecial2);
     SEXP s, fun, ans;
     int save = R_PPStackTop;
     int flag;
@@ -1184,6 +1192,7 @@ SEXP attribute_hidden do_internal(SEXP call, SEXP op, SEXP args, SEXP env)
     UNPROTECT(1);
     check_stack_balance(INTERNAL(fun), save);
     vmaxset(vmax);
+    END_TIMER(TR_dotSpecial2);
     return (ans);
 }
 #undef __R_Names__

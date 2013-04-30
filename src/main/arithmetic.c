@@ -39,6 +39,8 @@
 
 #include <Internal.h>
 
+#include "timeR.h"
+
 #define R_MSG_NA	_("NaNs produced")
 #define R_MSG_NONNUM_MATH _("non-numeric argument to mathematical function")
 
@@ -314,19 +316,25 @@ static SEXP lcall;
 
 SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_doArith);
     SEXP ans;
 
-    if (DispatchGroup("Ops", call, op, args, env, &ans))
+    if (DispatchGroup("Ops", call, op, args, env, &ans)) {
+	END_TIMER(TR_doArith);
 	return ans;
+    }
 
     switch (length(args)) {
     case 1:
-	return R_unary(call, op, CAR(args));
+	ans = R_unary(call, op, CAR(args));
+	break;
     case 2:
-	return R_binary(call, op, CAR(args), CADR(args));
+	ans = R_binary(call, op, CAR(args), CADR(args));
+	break;
     default:
 	errorcall(call,_("operator needs one or two arguments"));
     }
+    END_TIMER(TR_doArith);
     return ans;			/* never used; to keep -Wall happy */
 }
 

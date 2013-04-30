@@ -65,6 +65,7 @@ typedef struct
     Rboolean LoadSiteFile;
     Rboolean LoadInitFile;
     Rboolean DebugInitFile;
+    char *InputFileName;
     SA_TYPE RestoreAction;
     SA_TYPE SaveAction;
     size_t vsize;

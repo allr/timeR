@@ -41,6 +41,8 @@
 #include <Defn.h>
 #include <Internal.h>
 
+#include "timeR.h"
+
 /* JMC convinced MM that this was not a good idea: */
 #undef _S4_subsettable
 
@@ -649,6 +651,7 @@ static R_INLINE R_xlen_t scalarIndex(SEXP s)
     
 SEXP attribute_hidden do_subset_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
+    BEGIN_TIMER(TR_doSubset);
     SEXP ans, ax, px, x, subs;
     int drop, i, nsubs, type;
 
@@ -667,16 +670,25 @@ SEXP attribute_hidden do_subset_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	    R_xlen_t i = scalarIndex(s);
 	    switch (TYPEOF(x)) {
 	    case REALSXP:
-		if (i >= 1 && i <= XLENGTH(x))
-		    return ScalarReal( REAL(x)[i-1] );
+		if (i >= 1 && i <= XLENGTH(x)) {
+		    ans = ScalarReal( REAL(x)[i-1] );
+		    END_TIMER(TR_doSubset);
+		    return ans;
+		}
 		break;
 	    case INTSXP:
-		if (i >= 1 && i <= XLENGTH(x))
-		    return ScalarInteger( INTEGER(x)[i-1] );
+		if (i >= 1 && i <= XLENGTH(x)) {
+		    ans = ScalarInteger( INTEGER(x)[i-1] );
+		    END_TIMER(TR_doSubset);
+		    return ans;
+		}
 		break;
 	    case LGLSXP:
-		if (i >= 1 && i <= XLENGTH(x))
-		    return ScalarLogical( LOGICAL(x)[i-1] );
+		if (i >= 1 && i <= XLENGTH(x)) {
+		    ans = ScalarLogical( LOGICAL(x)[i-1] );
+		    END_TIMER(TR_doSubset);
+		    return ans;
+		}
 		break;
 	    default: break;
 	    }
@@ -703,16 +715,25 @@ SEXP attribute_hidden do_subset_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 		    R_xlen_t k = i - 1 + nrow * (j - 1);
 		    switch (TYPEOF(x)) {
 		    case REALSXP:
-			if (k < LENGTH(x))
-			    return ScalarReal( REAL(x)[k] );
+			if (k < LENGTH(x)) {
+			    ans = ScalarReal( REAL(x)[k] );
+			    END_TIMER(TR_doSubset);
+			    return ans;
+			}
 			break;
 		    case INTSXP:
-			if (k < LENGTH(x))
-			    return ScalarInteger( INTEGER(x)[k] );
+			if (k < LENGTH(x)) {
+			    ans = ScalarInteger( INTEGER(x)[k] );
+			    END_TIMER(TR_doSubset);
+			    return ans;
+			}
 			break;
 		    case LGLSXP:
-			if (k < LENGTH(x))
-			    return ScalarLogical( LOGICAL(x)[k] );
+			if (k < LENGTH(x)) {
+			    ans = ScalarLogical( LOGICAL(x)[k] );
+			    END_TIMER(TR_doSubset);
+			    return ans;
+			}
 			break;
 		    default: break;
 		    }
@@ -733,6 +754,7 @@ SEXP attribute_hidden do_subset_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     if (x == R_NilValue) {
 	UNPROTECT(1);
+	END_TIMER(TR_doSubset);
 	return x;
     }
     subs = CDR(args);
@@ -830,6 +852,7 @@ SEXP attribute_hidden do_subset_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	    setAttrib(ans, R_ClassSymbol, R_NilValue);
     }
     UNPROTECT(4);
+    END_TIMER(TR_doSubset);
     return ans;
 }
 
@@ -862,6 +885,7 @@ SEXP attribute_hidden do_subset2(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 SEXP attribute_hidden do_subset2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
+    BEGIN_TIMER(TR_doSubset2);
     SEXP ans, dims, dimnames, indx, subs, x;
     int i, ndims, nsubs;
     int drop = 1, pok, exact = -1;
@@ -886,6 +910,7 @@ SEXP attribute_hidden do_subset2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     if (x == R_NilValue) {
 	UNPROTECT(1);
+	END_TIMER(TR_doSubset2);
 	return x;
     }
 
@@ -919,10 +944,13 @@ SEXP attribute_hidden do_subset2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	} else SET_NAMED(ans, 2);
 
 	UNPROTECT(1);
-	if(ans == R_UnboundValue)
+	if(ans == R_UnboundValue) {
+	    END_TIMER(TR_doSubset2);
 	    return(R_NilValue);
+	}
 	if (NAMED(ans))
 	    SET_NAMED(ans, 2);
+	END_TIMER(TR_doSubset2);
 	return ans;
     }
 
@@ -948,6 +976,7 @@ SEXP attribute_hidden do_subset2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 			       isList(x) ||
 			       isLanguage(x))) {
 		UNPROTECT(1);
+		END_TIMER(TR_doSubset2);
 		return R_NilValue;
 	    }
 	    else errorcall(call, R_MSG_subs_o_b);
@@ -1017,6 +1046,7 @@ SEXP attribute_hidden do_subset2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	}
     }
     UNPROTECT(1);
+    END_TIMER(TR_doSubset2);
     return ans;
 }
 

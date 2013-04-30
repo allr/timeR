@@ -27,6 +27,8 @@
 
 #include <R_ext/RS.h> /* S4 bit */
 
+#include "timeR.h"
+
 /*  duplicate  -  object duplication  */
 
 /*  Because we try to maintain the illusion of call by
@@ -102,6 +104,8 @@ void attribute_hidden reset_duplicate_counter(void)
 #endif
 
 SEXP duplicate(SEXP s){
+    BEGIN_TIMER(TR_Duplicate);
+
     SEXP t;
 
 #ifdef R_PROFILING
@@ -116,6 +120,7 @@ SEXP duplicate(SEXP s){
 	    SET_RTRACE(t,1);
     }
 #endif
+    END_TIMER(TR_Duplicate);
     return t;
 }
 

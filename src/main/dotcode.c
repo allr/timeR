@@ -32,6 +32,7 @@
 
 #include <Rmath.h>
 
+#include "timeR.h"
 
 #ifndef max
 #define max(a, b) ((a > b)?(a):(b))
@@ -501,6 +502,7 @@ typedef SEXP (*R_ExternalRoutine2)(SEXP, SEXP, SEXP, SEXP);
 
 SEXP attribute_hidden do_External(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_dotExternal);
     DL_FUNC ofun = NULL;
     SEXP retval;
     R_RegisteredNativeSymbol symbol = {R_EXTERNAL_SYM, {NULL}, NULL};
@@ -528,6 +530,7 @@ SEXP attribute_hidden do_External(SEXP call, SEXP op, SEXP args, SEXP env)
 	retval = fun(args);
     }
     vmaxset(vmax);
+    END_TIMER(TR_dotExternal);
     return retval;
 }
 
@@ -540,6 +543,7 @@ typedef DL_FUNC VarFun;
 /* .Call(name, <args>) */
 SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_dotCallFull);
     DL_FUNC ofun = NULL;
     VarFun fun = NULL;
     SEXP retval, cargs[MAX_ARGS], pargs;
@@ -571,6 +575,7 @@ SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
 
     retval = R_NilValue;	/* -Wall */
     fun = (VarFun) ofun;
+    BEGIN_TIMER(TR_dotCall);
     switch (nargs) {
     case 0:
 	retval = (SEXP)ofun();
@@ -1224,7 +1229,9 @@ SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
     default:
 	errorcall(call, _("too many arguments, sorry"));
     }
+    END_TIMER(TR_dotCall);
     vmaxset(vmax);
+    END_TIMER(TR_dotCallFull);
     return retval;
 }
 
@@ -1380,6 +1387,7 @@ R_FindNativeSymbolFromDLL(char *name, DllReference *dll,
 
 SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_dotCodeFull);
     void **cargs, **cargs0 = NULL /* -Wall */;
     int dup, naok, na, nargs, Fort;
     Rboolean havenames, copy = R_CBoundsCheck; /* options(CboundsCheck) */
@@ -1679,6 +1687,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 	if (nprotect) UNPROTECT(nprotect);
     }
 
+    BEGIN_TIMER(TR_dotCode);
     switch (nargs) {
     case 0:
 	/* Silicon graphics C chokes here */
@@ -2273,6 +2282,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     default:
 	errorcall(call, _("too many arguments, sorry"));
     }
+    END_TIMER(TR_dotCode);
 
     if (dup) {
 
@@ -2467,6 +2477,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     }
     UNPROTECT(1);
     vmaxset(vmax);
+    END_TIMER(TR_dotCodeFull);
     return ans;
 }
 

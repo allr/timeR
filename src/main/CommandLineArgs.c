@@ -26,6 +26,7 @@
 #include <Defn.h>
 #include <R_ext/RStartup.h>
 
+#include "timeR.h"
 
 /* Remove and process common command-line arguments
  *  Formally part of ../unix/sys-common.c.
@@ -243,6 +244,20 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		else if (lval > 500000)
 		    R_ShowMessage(_("WARNING: '--max-ppsize' value is too large: ignored"));
 		else Rp->ppsize = (size_t) lval;
+	    }
+	    else if(strncmp(*av, "--timeR-file", 12) == 0) {
+		if(strlen(*av) < 14) {
+		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
+		} else p = &(*av)[13];
+		if (p == NULL) {
+		    snprintf(msg, 1024,
+		             _("WARNING: no value given for '%s'"), *av);
+		    R_ShowMessage(msg);
+		    break;
+		}
+		if(timeR_output_file != NULL)
+		    free(timeR_output_file);
+		timeR_output_file = strdup(p);
 	    }
 	    else { /* unknown -option */
 		argv[newac++] = *av;

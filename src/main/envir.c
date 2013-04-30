@@ -91,6 +91,8 @@
 #include <Internal.h>
 #include <R_ext/Callbacks.h>
 
+#include "timeR.h"
+
 #define IS_USER_DATABASE(rho)  OBJECT((rho)) && inherits((rho), "UserDefinedDatabase")
 
 /* various definitions of macros/functions in Defn.h */
@@ -1083,7 +1085,8 @@ static SEXP findGlobalVar(SEXP symbol)
 
 SEXP findVar(SEXP symbol, SEXP rho)
 {
-    SEXP vl;
+    BEGIN_TIMER(TR_SymLookup);
+    SEXP vl, ans;
 
     if (TYPEOF(rho) == NILSXP)
 	error(_("use of NULL environment is defunct"));
@@ -1097,19 +1100,28 @@ SEXP findVar(SEXP symbol, SEXP rho)
        R_GlobalEnv */
     while (rho != R_GlobalEnv && rho != R_EmptyEnv) {
 	vl = findVarInFrame3(rho, symbol, TRUE /* get rather than exists */);
-	if (vl != R_UnboundValue) return (vl);
+	if (vl != R_UnboundValue) {
+	    END_TIMER(TR_SymLookup);
+	    return (vl);
+	}
 	rho = ENCLOS(rho);
     }
     if (rho == R_GlobalEnv)
-	return findGlobalVar(symbol);
+	ans = findGlobalVar(symbol);
     else
-	return R_UnboundValue;
+	ans = R_UnboundValue;
+    END_TIMER(TR_SymLookup);
+    return ans;
 #else
     while (rho != R_EmptyEnv) {
 	vl = findVarInFrame3(rho, symbol, TRUE);
-	if (vl != R_UnboundValue) return (vl);
+	if (vl != R_UnboundValue) {
+	    END_TIMER(TR_SymLookup);
+	    return (vl);
+	}
 	rho = ENCLOS(rho);
     }
+    END_TIMER(TR_SymLookup);
     return R_UnboundValue;
 #endif
 }
@@ -1304,6 +1316,7 @@ SEXP dynamicfindVar(SEXP symbol, RCNTXT *cptr)
 
 SEXP findFun(SEXP symbol, SEXP rho)
 {
+    BEGIN_TIMER(TR_FunLookup);
     SEXP vl;
     while (rho != R_EmptyEnv) {
 	/* This is not really right.  Any variable can mask a function */
@@ -1318,12 +1331,16 @@ SEXP findFun(SEXP symbol, SEXP rho)
 	if (vl != R_UnboundValue) {
 	    if (TYPEOF(vl) == PROMSXP) {
 		PROTECT(vl);
+		BEGIN_TIMER(TR_FunLookupEval);
 		vl = eval(vl, rho);
+                END_TIMER(TR_FunLookupEval);
 		UNPROTECT(1);
 	    }
 	    if (TYPEOF(vl) == CLOSXP || TYPEOF(vl) == BUILTINSXP ||
-		TYPEOF(vl) == SPECIALSXP)
+		TYPEOF(vl) == SPECIALSXP) {
+		END_TIMER(TR_FunLookup);
 		return (vl);
+	    }
 	    if (vl == R_MissingArg)
 		error(_("argument \"%s\" is missing, with no default"),
 		      CHAR(PRINTNAME(symbol)));

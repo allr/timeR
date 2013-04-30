@@ -644,6 +644,7 @@ LibExtern char	R_ParseErrorMsg[PARSE_ERROR_SIZE] INI_as("");
 LibExtern char	R_ParseContext[PARSE_CONTEXT_SIZE] INI_as("");
 LibExtern int	R_ParseContextLast INI_as(0); /* last character in context buffer */
 LibExtern int	R_ParseContextLine; /* Line in file of the above */
+extern char*	R_InputFileName INI_as(NULL);
 
 /* Image Dump/Restore */
 extern int	R_DirtyImage	INI_as(0);	/* Current image dirty */

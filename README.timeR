@@ -1,0 +1,64 @@
+Usage:
+  R --timeR-file foo.csv <other parameters>
+
+Output is currently in "CSV" format, will probably change though
+
+Design goals:
+- mostly compatible with old timeR
+- minimal amount of changes in R code
+- introduces no failures in R selftests ("make check")
+- no new #ifdefs in R code
+- capable of measuring its own overhead where required
+- simple way of adding additional timers
+- compile-time selection of time measurement method
+- resistant against any possible control flow in R,
+  flow through specific functions to "unwind" the
+  timer stack in case of longjmp or similar is not
+  required
+
+
+Possible future design issues:
+- not thread-safe
+
+Currently unreached design goals:
+- "make check" fails due to additional field in srcrefs
+  -> programs can detect if profiled or not
+  -> alternative implementation using a lang5 instead of lang4
+     in xxdefun failed too
+
+Partially reached design goals:
+- adding new timers not simple enough,
+  requires modification in three places
+  (timeR.h, timeR.c, measurement location)
+  -> reduction to 2 maybe possible with preprocessor hacks,
+     reduction to 1 probably not with standard C
+- start/end positions of some timers have moved slightly
+  compared to timeR
+- time accounting in case of errors differs from old timeR
+  (partial function execution and error path are added
+   to the functions's timer now, was the caller's timer before)
+- changes in R are more extensive than preferred (e.g. file name
+  passing in main.c)
+
+Still incomplete:
+- autoconf integration, including compile-time disable
+- comments explaining mptr->measurement->bin hierarchy
+- not fully compatible with old timeR
+- only one time measurement method implemented
+- overhead measurements
+
+Open issues:
+- detection of current file name for naming timed user functions
+  is broken
+- name "dropped time" needs changeshould be changed
+  ("overhead" does not encompass all uses of the concept:
+   inSock* also utilize the flag)
+- (re)allocation sizes are not sensible
+- bin IDs stay attached at serialisation (not critical, just inelegant)
+- function names are lost at serialisation and replaced
+  with anonymous names at deserialisation
+- wrapping of every SETJMP is extremely ugly, can't handle by wrapping
+  in a function though (would return to invalid stack frame)
+
+Possible future extensions:
+- check if a reasonable file name can be generated when source() is used

@@ -25,6 +25,8 @@
 #include <Defn.h>
 #include <Internal.h>
 
+#include "timeR.h"
+
 /* interval at which to check interrupts, a guess */
 #define NINTERRUPT 10000000
 
@@ -38,15 +40,22 @@ static SEXP binaryLogic2(int code, SEXP s1, SEXP s2);
 /* & | ! */
 SEXP attribute_hidden do_logic(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_doLogic);
     SEXP ans;
 
-    if (DispatchGroup("Ops",call, op, args, env, &ans))
+    if (DispatchGroup("Ops",call, op, args, env, &ans)) {
+	END_TIMER(TR_doLogic);
 	return ans;
+    }
     switch (length(args)) {
     case 1:
-	return lunary(call, op, CAR(args));
+	ans = lunary(call, op, CAR(args));
+	END_TIMER(TR_doLogic);
+	return ans;
     case 2:
-	return lbinary(call, op, args);
+	ans = lbinary(call, op, args);
+	END_TIMER(TR_doLogic);
+	return ans;
     default:
 	error(_("binary operations require two arguments"));
 	return R_NilValue;	/* for -Wall */

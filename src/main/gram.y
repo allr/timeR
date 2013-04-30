@@ -29,6 +29,8 @@
 #include "Parse.h"
 #include <R_ext/Print.h>
 
+#include "timeR.h"
+
 #if !defined(__STDC_ISO_10646__) && (defined(__APPLE__) || defined(__FreeBSD__))
 /* This may not be 100% true (see the comment in rlocales.h),
    but it seems true in normal locales */
@@ -172,6 +174,8 @@ static SEXP	NewList(void);
 static SEXP	NextArg(SEXP, SEXP, SEXP);
 static SEXP	TagArg(SEXP, SEXP, YYLTYPE *);
 static int 	processLineDirective();
+static void	setParseFilename(SEXP);
+static const char* getSrcFileName(SEXP);
 
 /* These routines allocate constants */
 
@@ -278,6 +282,7 @@ static SEXP	xxfuncall(SEXP, SEXP);
 static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
+static SEXP     xxassign(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
 static SEXP	xxsubscript(SEXP, SEXP, SEXP);
 static SEXP	xxexprlist(SEXP, YYLTYPE *, SEXP);
@@ -379,8 +384,8 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	expr AND2 expr			{ $$ = xxbinary($2,$1,$3);	setId( $$, @$); }
 	|	expr OR2 expr			{ $$ = xxbinary($2,$1,$3);	setId( $$, @$); }
 
-	|	expr LEFT_ASSIGN expr 		{ $$ = xxbinary($2,$1,$3);	setId( $$, @$); }
-	|	expr RIGHT_ASSIGN expr 		{ $$ = xxbinary($2,$3,$1);	setId( $$, @$); }
+	|	expr LEFT_ASSIGN expr 		{ $$ = xxassign($2,$1,$3);	setId( $$, @$); }
+	|	expr RIGHT_ASSIGN expr 		{ $$ = xxassign($2,$3,$1);	setId( $$, @$); }
 	|	FUNCTION '(' formlist ')' cr expr_or_assign %prec LOW
 						{ $$ = xxdefun($1,$3,$6,&@$); 	setId( $$, @$); }
 	|	expr '(' sublist ')'		{ $$ = xxfuncall($1,$3);  setId( $$, @$); modif_token( &@1, SYMBOL_FUNCTION_CALL ) ; }
@@ -553,11 +558,16 @@ static void initId(void){
 	identifier = 0 ;
 }
 
-static SEXP makeSrcref(YYLTYPE *lloc, SEXP srcfile)
+static SEXP makeSrcref(YYLTYPE *lloc, SEXP srcfile, unsigned int bin_index)
 {
     SEXP val;
 
-    PROTECT(val = allocVector(INTSXP, 8));
+    if (bin_index > 0) {
+        PROTECT(val = allocVector(INTSXP, 9));
+        INTEGER(val)[8] = bin_index;
+    } else
+        PROTECT(val = allocVector(INTSXP, 8));
+
     INTEGER(val)[0] = lloc->first_line;
     INTEGER(val)[1] = lloc->first_byte;
     INTEGER(val)[2] = lloc->last_line;
@@ -595,7 +605,7 @@ static SEXP attachSrcrefs(SEXP val)
 	wholeFile.last_column = ParseState.xxcolno;
 	wholeFile.first_parsed = 1;
 	wholeFile.last_parsed = ParseState.xxparseno;
-	setAttrib(val, R_WholeSrcrefSymbol, makeSrcref(&wholeFile, ParseState.SrcFile));
+	setAttrib(val, R_WholeSrcrefSymbol, makeSrcref(&wholeFile, ParseState.SrcFile, 0));
     }
     REPROTECT(SrcRefs = NewList(), srindex);
     ParseState.didAttach = TRUE;
@@ -607,7 +617,7 @@ static int xxvalue(SEXP v, int k, YYLTYPE *lloc)
 {
     if (k > 2) {
 	if (ParseState.keepSrcRefs)
-	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile)), srindex);
+	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile, 0)), srindex);
 	UNPROTECT_PTR(v);
     }
     R_CurrentExpr = v;
@@ -696,7 +706,7 @@ static SEXP xxexprlist1(SEXP expr, YYLTYPE *lloc)
 	if (ParseState.keepSrcRefs) {
 	    setAttrib(tmp, R_SrcrefSymbol, SrcRefs);
 	    REPROTECT(SrcRefs = NewList(), srindex);
-	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile)), srindex);
+	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile, 0)), srindex);
 	}
 	PROTECT(ans = GrowList(tmp, expr));
 	UNPROTECT_PTR(tmp);
@@ -712,7 +722,7 @@ static SEXP xxexprlist2(SEXP exprlist, SEXP expr, YYLTYPE *lloc)
     SEXP ans;
     if (GenerateCode) {
 	if (ParseState.keepSrcRefs)
-	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile)), srindex);
+	    REPROTECT(SrcRefs = GrowList(SrcRefs, makeSrcref(lloc, ParseState.SrcFile, 0)), srindex);
 	PROTECT(ans = GrowList(exprlist, expr));
     }
     else
@@ -950,8 +960,17 @@ static SEXP xxdefun(SEXP fname, SEXP formals, SEXP body, YYLTYPE *lloc)
 
     if (GenerateCode) {
     	if (ParseState.keepSrcRefs) {
-    	    srcref = makeSrcref(lloc, ParseState.SrcFile);
+            unsigned int bin_index;
+            char nametmp[1024];
+
+            bin_index = timeR_add_userfn_bin();
+	    srcref = makeSrcref(lloc, ParseState.SrcFile, bin_index);
     	    ParseState.didAttach = TRUE;
+
+            timeR_name_bin_anonfunc(INTEGER(srcref)[8],
+                                    getSrcFileName(srcref),
+                                    lloc->first_line,
+                                    lloc->first_column);
     	} else
     	    srcref = R_NilValue;
 	PROTECT(ans = lang4(fname, CDR(formals), body, srcref));
@@ -982,6 +1001,40 @@ static SEXP xxbinary(SEXP n1, SEXP n2, SEXP n3)
 	PROTECT(ans = R_NilValue);
     UNPROTECT_PTR(n2);
     UNPROTECT_PTR(n3);
+    return ans;
+}
+
+static SEXP xxassign(SEXP n1, SEXP n2, SEXP n3)
+{
+    static SEXP function_symbol;
+    SEXP ans = xxbinary(n1, n2, n3);
+
+    if (function_symbol == NULL)
+        function_symbol = install("function");
+
+    if (isSymbol(n2)      &&
+        isLanguage(n3)    &&
+        isSymbol(CAR(n3)) &&
+        CAR(n3) == function_symbol) {
+        SEXP srcref = CADDDR(n3);
+
+        if (srcref != R_NilValue &&
+            TYPEOF(srcref) == INTSXP &&
+            LENGTH(srcref) > 8) {
+            /* replace the default "anon" function name with the LHS symbol name */
+            SEXP srcref = CADDDR(n3);
+            if (LENGTH(srcref) > 8) {
+                char nametmp[1024];
+
+                nametmp[sizeof(nametmp) - 1] = 0;
+                snprintf(nametmp, sizeof(nametmp), "%s:%s", getSrcFileName(srcref),
+                         CHAR(PRINTNAME(n2)));
+
+                timeR_name_bin(INTEGER(srcref)[8], nametmp);
+            }
+        }
+    }
+
     return ans;
 }
 
@@ -1024,7 +1077,7 @@ static SEXP xxexprlist(SEXP a1, YYLTYPE *lloc, SEXP a2)
 	SETCAR(a2, a1);
 	if (ParseState.keepSrcRefs) {
 	    PROTECT(prevSrcrefs = getAttrib(a2, R_SrcrefSymbol));
-	    REPROTECT(SrcRefs = Insert(SrcRefs, makeSrcref(lloc, ParseState.SrcFile)), srindex);
+	    REPROTECT(SrcRefs = Insert(SrcRefs, makeSrcref(lloc, ParseState.SrcFile, 0)), srindex);
 	    PROTECT(ans = attachSrcrefs(a2));
 	    REPROTECT(SrcRefs = prevSrcrefs, srindex);
 	    /* SrcRefs got NAMED by being an attribute... */
@@ -1352,6 +1405,10 @@ static int file_getc(void)
 attribute_hidden
 SEXP R_Parse1File(FILE *fp, int gencode, ParseStatus *status, SrcRefState *state)
 {
+    if (state) {
+        PROTECT(SrcRefs = NewList ());
+    }
+
     int savestack;
     UseSrcRefState(state);
     savestack = R_PPStackTop;    
@@ -1375,20 +1432,28 @@ static int buffer_getc(void)
 
 /* Used only in main.c */
 attribute_hidden
-SEXP R_Parse1Buffer(IoBuffer *buffer, int gencode, ParseStatus *status)
+SEXP R_Parse1Buffer(IoBuffer *buffer, int gencode, ParseStatus *status, const char *sourcename)
 {
     Rboolean keepSource = FALSE; 
-    int savestack;    
+    int savestack;
+    SEXP srcname;
 
     R_InitSrcRefState(&ParseState);
     savestack = R_PPStackTop;       
     if (gencode) {
-    	keepSource = asLogical(GetOption1(install("keep.source")));
+	keepSource = asLogical(GetOption1(install("keep.source")));
+
+        if (TIME_R_ENABLED)
+            keepSource = 1;
+
     	if (keepSource) {
     	    ParseState.keepSrcRefs = TRUE;
     	    REPROTECT(ParseState.SrcFile = NewEnvironment(R_NilValue, R_NilValue, R_EmptyEnv), ParseState.SrcFileProt);
 	    REPROTECT(ParseState.Original = ParseState.SrcFile, ParseState.OriginalProt);
 	    PROTECT_WITH_INDEX(SrcRefs = NewList(), &srindex);
+
+            PROTECT(srcname = mkString(sourcename));
+            setParseFilename(srcname);
 	}
     }
     ParseInit();
@@ -2662,6 +2727,23 @@ static int processLineDirective(int *type)
     /* we don't change xxparseno here:  it counts parsed lines, not official lines */
     R_ParseContext[R_ParseContextLast] = '\0';  /* Context report shouldn't show the directive */
     return(c);
+}
+
+/* return the source file name from srcref as a C string */
+static const char *getSrcFileName(SEXP srcref) {
+    static SEXP filename_symbol;
+    SEXP srcfile = getAttrib(srcref, R_SrcfileSymbol);
+
+    if (filename_symbol == NULL)
+        filename_symbol = install("filename");
+
+    if (isEnvironment(srcfile)) {
+        SEXP filename = findVar(filename_symbol, srcfile);
+        if (isString(filename) && length(filename))
+            return CHAR(STRING_ELT(filename, 0));
+    }
+
+    return "(unknown)";
 }
 
 /* Get the R symbol, and set yytext at the same time */

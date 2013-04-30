@@ -38,6 +38,7 @@
 #include "Fileio.h"
 #include "Parse.h"
 #include "Startup.h"
+#include "timeR.h"
 
 #include <locale.h>
 #include <R_ext/Print.h>
@@ -77,7 +78,7 @@ extern void InitDynload(void);
 
 	/* Read-Eval-Print Loop [ =: REPL = repl ] with input from a file */
 
-static void R_ReplFile(FILE *fp, SEXP rho)
+static void R_ReplFile(FILE *fp, SEXP rho, const char *filename)
 {
     ParseStatus status;
     int count=0;
@@ -85,6 +86,21 @@ static void R_ReplFile(FILE *fp, SEXP rho)
     int savestack;
     
     R_InitSrcRefState(&ParseState);
+    ParseState.keepSrcRefs = TRUE;
+    // FIXME: Semi-duplicated from gram.y:setParseFilename
+    PROTECT_WITH_INDEX(ParseState.SrcFile = NewEnvironment(R_NilValue, R_NilValue, R_EmptyEnv), &(ParseState.SrcFileProt));
+    if (filename != NULL) {
+        defineVar(install("filename"), mkString(filename), ParseState.SrcFile);
+    } else {
+        error("ReplFile() on file with no name!\n");
+    }
+
+    SEXP class;
+    PROTECT(class = allocVector(STRSXP, 2));
+    SET_STRING_ELT(class, 0, mkChar("srcfilealias"));
+    SET_STRING_ELT(class, 1, mkChar("srcfile"));
+    setAttrib(ParseState.SrcFile, R_ClassSymbol, class);
+
     savestack = R_PPStackTop;    
     for(;;) {
 	R_PPStackTop = savestack;
@@ -197,8 +213,13 @@ typedef struct {
  The "cursor" for the input buffer is moved to the next starting
  point, i.e. the end of the first line or after the first ;.
  */
+/* FIXME: A comment above suggests that this function is meant to
+ *        be an external API in which case the signature must not
+ *        be changed.
+ */
 int
-Rf_ReplIteration(SEXP rho, int savestack, int browselevel, R_ReplState *state)
+Rf_ReplIteration(SEXP rho, int savestack, int browselevel,
+                 R_ReplState *state, const char *sourcename)
 {
     int c, browsevalue;
     SEXP value, thisExpr;
@@ -224,7 +245,7 @@ Rf_ReplIteration(SEXP rho, int savestack, int browselevel, R_ReplState *state)
     }
 
     R_PPStackTop = savestack;
-    R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 0, &state->status);
+    R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 0, &state->status, sourcename);
     
     switch(state->status) {
 
@@ -241,7 +262,7 @@ Rf_ReplIteration(SEXP rho, int savestack, int browselevel, R_ReplState *state)
     case PARSE_OK:
 
 	R_IoBufferReadReset(&R_ConsoleIob);
-	R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 1, &state->status);
+	R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 1, &state->status, sourcename);
 	if (browselevel) {
 	    browsevalue = ParseBrowser(R_CurrentExpr, rho);
 	    if(browsevalue == 1) return -1;
@@ -295,16 +316,28 @@ static void R_ReplConsole(SEXP rho, int savestack, int browselevel)
 {
     int status;
     R_ReplState state = { PARSE_NULL, 1, 0, "", NULL};
+    char *sourcename;
 
     R_IoBufferWriteReset(&R_ConsoleIob);
     state.buf[0] = '\0';
     state.buf[CONSOLE_BUFFER_SIZE] = '\0';
     /* stopgap measure if line > CONSOLE_BUFFER_SIZE chars */
     state.bufp = state.buf;
+
+    if (R_Interactive) {
+        sourcename = "Console";
+    } else {
+        if (R_InputFileName != NULL) {
+            sourcename = R_InputFileName;
+        } else {
+            sourcename = "(stdin)";
+        }
+    }
+
     if(R_Verbose)
 	REprintf(" >R_ReplConsole(): before \"for(;;)\" {main.c}\n");
     for(;;) {
-	status = Rf_ReplIteration(rho, savestack, browselevel, &state);
+	status = Rf_ReplIteration(rho, savestack, browselevel, &state, sourcename);
 	if(status < 0)
 	  return;
     }
@@ -316,7 +349,9 @@ static unsigned char DLLbuf[CONSOLE_BUFFER_SIZE+1], *DLLbufp;
 void R_ReplDLLinit(void)
 {
     R_IoBufferInit(&R_ConsoleIob);
+    MARK_TIMER();
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     R_IoBufferWriteReset(&R_ConsoleIob);
     prompt_type = 1;
@@ -345,7 +380,7 @@ int R_ReplDLLdo1(void)
 	if(c == ';' || c == '\n') break;
     }
     R_PPStackTop = 0;
-    R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 0, &status);
+    R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 0, &status, "(embedded)");
 
     switch(status) {
     case PARSE_NULL:
@@ -354,7 +389,7 @@ int R_ReplDLLdo1(void)
 	break;
     case PARSE_OK:
 	R_IoBufferReadReset(&R_ConsoleIob);
-	R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 1, &status);
+	R_CurrentExpr = R_Parse1Buffer(&R_ConsoleIob, 1, &status, "(embedded)");
 	R_Visible = FALSE;
 	R_EvalDepth = 0;
 	resetTimeLimits();
@@ -658,10 +693,12 @@ static void R_LoadProfile(FILE *fparg, SEXP env)
 {
     FILE * volatile fp = fparg; /* is this needed? */
     if (fp != NULL) {
+	MARK_TIMER();
 	if (! SETJMP(R_Toplevel.cjmpbuf)) {
 	    R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
-	    R_ReplFile(fp, env);
-	}
+	    R_ReplFile(fp, env, "Rprofile");
+	} else
+	    RELEASE_TIMER();
 	fclose(fp);
     }
 }
@@ -698,6 +735,8 @@ void setup_Rmainloop(void)
     FILE *fp;
     char deferred_warnings[11][250];
     volatile int ndeferred_warnings = 0;
+
+    BEGIN_TIMER(TR_Mainloop);
 
     InitConnections(); /* needed to get any output at all */
 
@@ -834,12 +873,18 @@ void setup_Rmainloop(void)
 	R_Suicide(_("unable to open the base package\n"));
 
     doneit = 0;
+    MARK_TIMER();
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     if (R_SignalHandlers) init_signal_handlers();
     if (!doneit) {
+        char base_name[PATH_MAX + 1];
+
+        snprintf(base_name, sizeof(base_name), "%s/library/base/R/base", R_Home);
+
 	doneit = 1;
-	R_ReplFile(fp, baseEnv);
+	R_ReplFile(fp, baseEnv, base_name);
     }
     fclose(fp);
 
@@ -863,6 +908,7 @@ void setup_Rmainloop(void)
     /* require(methods) if it is in the default packages */
     doneit = 0;
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     if (!doneit) {
 	doneit = 1;
@@ -901,6 +947,7 @@ void setup_Rmainloop(void)
     */
     doneit = 0;
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     if (!doneit) {
 	doneit = 1;
@@ -909,7 +956,8 @@ void setup_Rmainloop(void)
     else {
     	if (! SETJMP(R_Toplevel.cjmpbuf)) {
 	    warning(_("unable to restore saved data in %s\n"), get_workspace_name());
-	}
+	} else
+	    RELEASE_TIMER();
     }
     
     /* Initial Loading is done.
@@ -918,6 +966,7 @@ void setup_Rmainloop(void)
 
     doneit = 0;
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     if (!doneit) {
 	doneit = 1;
@@ -936,6 +985,7 @@ void setup_Rmainloop(void)
 
     doneit = 0;
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     if (!doneit) {
 	doneit = 1;
@@ -978,18 +1028,23 @@ static void end_Rmainloop(void)
 
 void run_Rmainloop(void)
 {
+    BEGIN_TIMER(TR_Repl);
     /* Here is the real R read-eval-loop. */
     /* We handle the console until end-of-file. */
     R_IoBufferInit(&R_ConsoleIob);
+    MARK_TIMER();
     SETJMP(R_Toplevel.cjmpbuf);
+    RELEASE_TIMER();
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     R_ReplConsole(R_GlobalEnv, 0, 0);
+    END_TIMER(TR_Repl);
     end_Rmainloop(); /* must go here */
 }
 
 void mainloop(void)
 {
     setup_Rmainloop();
+    timeR_startup_done();
     run_Rmainloop();
 }
 
@@ -1124,6 +1179,7 @@ SEXP attribute_hidden do_browser(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     begincontext(&returncontext, CTXT_BROWSER, call, rho,
 		 R_BaseEnv, argList, R_NilValue);
+    MARK_TIMER();
     if (!SETJMP(returncontext.cjmpbuf)) {
 	begincontext(&thiscontext, CTXT_RESTART, R_NilValue, rho,
 		     R_BaseEnv, R_NilValue, R_NilValue);
@@ -1136,7 +1192,8 @@ SEXP attribute_hidden do_browser(SEXP call, SEXP op, SEXP args, SEXP rho)
 	R_InsertRestartHandlers(&thiscontext, TRUE);
 	R_ReplConsole(rho, savestack, browselevel+1);
 	endcontext(&thiscontext);
-    }
+    } else
+	RELEASE_TIMER();
     endcontext(&returncontext);
 
     /* Reset the interpreter state. */

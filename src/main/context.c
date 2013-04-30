@@ -111,6 +111,8 @@
 #include <Defn.h>
 #include <Internal.h>
 
+#include "timeR.h"
+
 /* R_run_onexits - runs the conexit/cend code for all contexts from
    R_GlobalContext down to but not including the argument context.
    This routine does not stop at a CTXT_TOPLEVEL--the code that
@@ -119,6 +121,7 @@
 
 void attribute_hidden R_run_onexits(RCNTXT *cptr)
 {
+    BEGIN_TIMER(TR_onExits);
     RCNTXT *c;
 
     for (c = R_GlobalContext; c != cptr; c = c->nextcontext) {
@@ -150,6 +153,7 @@ please bug.report() [R_run_onexits]"));
 	    UNPROTECT(1);
 	}
     }
+    END_TIMER(TR_onExits);
 }
 
 
@@ -696,9 +700,11 @@ Rboolean R_ToplevelExec(void (*fun)(void *), void *data)
 
     begincontext(&thiscontext, CTXT_TOPLEVEL, R_NilValue, R_GlobalEnv,
 		 R_BaseEnv, R_NilValue, R_NilValue);
-    if (SETJMP(thiscontext.cjmpbuf))
+    MARK_TIMER();
+    if (SETJMP(thiscontext.cjmpbuf)) {
+	RELEASE_TIMER();
 	result = FALSE;
-    else {
+    } else {
 	R_GlobalContext = R_ToplevelContext = &thiscontext;
 	fun(data);
 	result = TRUE;

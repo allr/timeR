@@ -37,6 +37,8 @@
 #include <io.h> /* for mkdir */
 #endif
 
+#include "timeR.h"
+
 /* cf do_dircreate in platform.c */
 static int R_mkdir(char *path)
 {
@@ -301,6 +303,7 @@ static SEXP ziplist(const char *zipname)
 
 SEXP Runzip(SEXP args)
 {
+    BEGIN_TIMER(TR_doUnzip);
     SEXP  fn, ans, names = R_NilValue;
     char  zipname[PATH_MAX], dest[PATH_MAX];
     const char *p, **topics = NULL;
@@ -335,7 +338,11 @@ SEXP Runzip(SEXP args)
     list = asLogical(CAR(args));
     if (list == NA_LOGICAL)
 	error(_("invalid '%s' argument"), "list");
-    if (list) return(ziplist(zipname));
+    if (list) {
+	ans = ziplist(zipname);
+	END_TIMER(TR_doUnzip);
+	return ans;
+    }
     args = CDR(args);
     overwrite = asLogical(CAR(args));
     if (overwrite == NA_LOGICAL)
@@ -380,6 +387,7 @@ SEXP Runzip(SEXP args)
     PROTECT(names = lengthgets(names, nnames));
     setAttrib(ans, install("extracted"), names);
     UNPROTECT(3);
+    END_TIMER(TR_doUnzip);
     return ans;
 }
 
@@ -445,20 +453,26 @@ static void unz_close(Rconnection con)
 
 static int unz_fgetc_internal(Rconnection con)
 {
+    BEGIN_TIMER(TR_zipRead);
     unzFile uf = ((Runzconn)(con->private))->uf;
     char buf[1];
     int err, p;
 
     err = unzReadCurrentFile(uf, buf, 1);
     p = buf[0] % 256;
+    END_TIMER(TR_zipRead);
     return (err < 1) ? R_EOF : p;
 }
 
 static size_t unz_read(void *ptr, size_t size, size_t nitems,
 		       Rconnection con)
 {
+    BEGIN_TIMER(TR_zipRead);
+    size_t ans;
     unzFile uf = ((Runzconn)(con->private))->uf;
-    return unzReadCurrentFile(uf, ptr, (unsigned int)(size*nitems))/size;
+    ans = unzReadCurrentFile(uf, ptr, (unsigned int)(size*nitems))/size;
+    END_TIMER(TR_zipRead);
+    return ans;
 }
 
 static int null_vfprintf(Rconnection con, const char *format, va_list ap)
