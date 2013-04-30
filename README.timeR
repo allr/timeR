@@ -50,7 +50,7 @@ Still incomplete:
 Open issues:
 - detection of current file name for naming timed user functions
   is broken
-- name "dropped time" needs changeshould be changed
+- name "dropped time" should be changed
   ("overhead" does not encompass all uses of the concept:
    inSock* also utilize the flag)
 - (re)allocation sizes are not sensible
