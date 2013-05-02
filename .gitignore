@@ -1,4 +1,5 @@
-.gitignore
+/NEWS
+/NEWS.pdf
 core
 Makeconf
 Makefile
