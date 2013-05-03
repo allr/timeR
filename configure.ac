@@ -194,7 +194,7 @@ AC_SUBST(config_opts)
 
 ### ** Optional features.
 
-## Allow the user to specify support for timeR deterministoc profiling.
+## Allow the user to specify support for timeR deterministic profiling.
 AC_ARG_ENABLE([timeR],
 [AS_HELP_STRING([--enable-timeR],[attempt to compile support for timeR @<:@no@:>@])],
 [if test "${enableval}" = no; then
@@ -346,6 +346,18 @@ AM_CONDITIONAL(BUILD_LTO, [test "x${want_lto}" != xno])
 
 
 ### ** Optional packages.
+
+## timeR clock source
+AC_ARG_WITH([timeR-clock],
+[AS_HELP_STRING([--with-timeR-clock=SOURCE],[select the clock source for timeR @<:@posix@:>@,rdtsc,rdtscp])],
+[case "${withval}" in
+   posix | rdtsc | rdtscp)
+     with_time_r_clock="${withval}"
+     ;;
+   *)
+     with_time_r_clock="posix"
+ esac],
+[with_time_r_clock="posix"])
 
 ## BLAS.
 AC_ARG_WITH([blas],
@@ -2234,7 +2246,23 @@ gl_STAT_TIME
 ## timeR profiling.
 if test "${want_timeR}" = yes; then
   AC_DEFINE(HAVE_TIME_R, 1, [Define this to enable timeR deterministic profiling.])
+
+  case ${with_time_r_clock} in
+    posix)
+      AC_DEFINE(TIME_R_CLOCK_POSIX, 1, [Define this to select POSIX clock_gettime as timeR clock source.])
+      ;;
+    rdtsc)
+      AC_DEFINE(TIME_R_CLOCK_RDTSC, 1, [Define this to select RDTSC as timeR clock source.])
+      ;;
+    rdtscp)
+      AC_DEFINE(TIME_R_CLOCK_RDTSCP, 1, [Define this to select RDTSCP as timeR clock source.])
+      ;;
+  esac
 fi
+AC_SUBST(HAVE_TIME_R)
+AC_SUBST(TIME_R_CLOCK_POSIX)
+AC_SUBST(TIME_R_CLOCK_RDTSC)
+AC_SUBST(TIME_R_CLOCK_RDTSCP)
 
 ## R profiling.
 if test "${want_R_profiling}" = yes; then
@@ -2767,6 +2795,11 @@ if test "${use_blas_shlib}" = yes; then
 fi
 if test "${want_timeR}" = yes; then
   R_SH_VAR_ADD(r_options, [timeR profiling], [, ])
+  case ${with_time_r_clock} in
+    posix)  R_SH_VAR_ADD(r_options, [(POSIX)],  [ ]) ;;
+    rdtsc)  R_SH_VAR_ADD(r_options, [(RDTSC)],  [ ]) ;;
+    rdtscp) R_SH_VAR_ADD(r_options, [(RDTSCP)], [ ]) ;;
+  esac
 fi
 if test "${want_R_profiling}" = yes; then
   R_SH_VAR_ADD(r_options, [R profiling], [, ])

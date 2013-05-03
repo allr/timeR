@@ -997,6 +997,15 @@
 /* Define to enable provoking compile errors on write barrier violation. */
 #undef TESTING_WRITE_BARRIER
 
+/* Define this to select POSIX clock_gettime as timeR clock source. */
+#undef TIME_R_CLOCK_POSIX
+
+/* Define this to select RDTSC as timeR clock source. */
+#undef TIME_R_CLOCK_RDTSC
+
+/* Define this to select RDTSCP as timeR clock source. */
+#undef TIME_R_CLOCK_RDTSCP
+
 /* Define to 1 if the type of the st_atim member of a struct stat is struct
    timespec. */
 #undef TYPEOF_STRUCT_STAT_ST_ATIM_IS_STRUCT_TIMESPEC

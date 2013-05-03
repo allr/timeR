@@ -5,9 +5,16 @@
 
 #include <assert.h>
 #include "timeR-config.h"
-//#include "timeR-posix.h"
-#include "timeR-rdtsc.h"
-//#include "timeR-rdtscp.h"
+
+# ifdef TIME_R_CLOCK_POSIX
+#  include "timeR-posix.h"
+# endif
+# ifdef TIME_R_CLOCK_RDTSC
+#  include "timeR-rdtsc.h"
+# endif
+# ifdef TIME_R_CLOCK_RDTSCP
+#  include "timeR-rdtscp.h"
+# endif
 
 #define TIME_R_ENABLED 1
 

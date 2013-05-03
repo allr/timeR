@@ -1,3 +1,10 @@
+Compilation notes:
+- Use --enable-timeR to enable when running configure
+- Use --with-timeR-clock=[posix|rdtsc|rdtscp] to select the
+  clock source used, default is posix. Be aware of the
+  limitations of rdtsc/rdtscp, Wikipedia mentions a few:
+  https://en.wikipedia.org/wiki/Time_Stamp_Counter
+
 Usage:
   R --timeR-file foo.csv <other parameters>
 
@@ -43,8 +50,6 @@ Partially reached design goals:
 Still incomplete:
 - comments explaining mptr->measurement->bin hierarchy
 - not fully compatible with old timeR
-- only one time measurement method implemented
-  - autoconf-selectable timing methods
 - overhead measurements
 
 Open issues:
