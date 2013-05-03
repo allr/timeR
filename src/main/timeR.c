@@ -144,7 +144,7 @@ void timeR_init_early(void) {
 
     /* slightly ugly, but this is called before any part of R is initialized */
     if (!rtime_check_working()) {
-	fprintf(stderr, "ERROR: The chosen timing method does not work!\n");
+	fprintf(stderr, "ERROR: The chosen timing method reports that it does not work!\n");
 	exit(2);
     }
 

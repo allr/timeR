@@ -5,7 +5,9 @@
 
 #include <assert.h>
 #include "timeR-config.h"
-#include "timeR-posix.h"
+//#include "timeR-posix.h"
+#include "timeR-rdtsc.h"
+//#include "timeR-rdtscp.h"
 
 #define TIME_R_ENABLED 1
 
