@@ -22662,7 +22662,7 @@ if ac_fn_c_try_link "$LINENO"; then :
   ac_cv_prog_c_openmp='none needed'
 else
   ac_cv_prog_c_openmp='unsupported'
-													  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
+	  	  	  	  	  	  	  	  	  	  	  	  	  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
 	    ac_save_CFLAGS=$CFLAGS
 	    CFLAGS="$CFLAGS $ac_option"
 	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -24119,7 +24119,7 @@ if ac_fn_f77_try_link "$LINENO"; then :
   ac_cv_prog_f77_openmp='none needed'
 else
   ac_cv_prog_f77_openmp='unsupported'
-													  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
+	  	  	  	  	  	  	  	  	  	  	  	  	  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
 	    ac_save_FFLAGS=$FFLAGS
 	    FFLAGS="$FFLAGS $ac_option"
 	    cat > conftest.$ac_ext <<_ACEOF
@@ -24242,7 +24242,7 @@ if ac_fn_cxx_try_link "$LINENO"; then :
   ac_cv_prog_cxx_openmp='none needed'
 else
   ac_cv_prog_cxx_openmp='unsupported'
-													  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
+	  	  	  	  	  	  	  	  	  	  	  	  	  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
 	    ac_save_CXXFLAGS=$CXXFLAGS
 	    CXXFLAGS="$CXXFLAGS $ac_option"
 	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -37828,7 +37828,7 @@ if ac_fn_fc_try_link "$LINENO"; then :
   ac_cv_prog_fc_openmp='none needed'
 else
   ac_cv_prog_fc_openmp='unsupported'
-													  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
+	  	  	  	  	  	  	  	  	  	  	  	  	  for ac_option in -fopenmp -xopenmp -openmp -mp -omp -qsmp=omp; do
 	    ac_save_FCFLAGS=$FCFLAGS
 	    FCFLAGS="$FCFLAGS $ac_option"
 	    cat > conftest.$ac_ext <<_ACEOF

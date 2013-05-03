@@ -1,5 +1,9 @@
 /*
  * POSIX clock_gettime-based time functions
+ *
+ * This measurement method uses CLOCK_MONOTONIC to
+ * measure elapsed time. Its output is always in
+ * nanoseconds.
  */
 
 #ifndef TIME_R_POSIX
@@ -28,11 +32,6 @@ static inline timeR_t tr_now(void) {
     asm volatile ("" ::: "memory");
 
     return (timeR_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
-}
-
-/* convert an timeR_t to nanoseconds */
-static inline long long timeR_to_nsec(const timeR_t t) {
-    return t;
 }
 
 /* check if this timing method is working, returns 1 if ok */

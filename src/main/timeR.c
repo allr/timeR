@@ -121,8 +121,8 @@ static tr_measureptr_t startup_mptr;
 static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
     fprintf(fd, "%s,%lld,%lld,%llu,%llu\n",
             timeR_bins[id].name,
-            timeR_to_nsec(timeR_bins[id].sum_exclusive),
-            timeR_to_nsec(timeR_bins[id].sum_complete),
+            timeR_bins[id].sum_exclusive,
+            timeR_bins[id].sum_complete,
             timeR_bins[id].starts,
             timeR_bins[id].aborts);
 }
