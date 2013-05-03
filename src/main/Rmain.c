@@ -22,6 +22,10 @@ int Rf_initialize_R(int ac, char **av); /* in ../unix/system.c */
 
 #include <Rinterface.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "timeR.h"
 
 extern int R_running_as_main_program;   /* in ../unix/system.c */

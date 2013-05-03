@@ -735,6 +735,9 @@
 /* Define to 1 if you have the `timespec_get' function. */
 #undef HAVE_TIMESPEC_GET
 
+/* Define this to enable timeR deterministic profiling. */
+#undef HAVE_TIME_R
+
 /* Define to 1 if you have the `tsearch' function. */
 #undef HAVE_TSEARCH
 
@@ -1068,11 +1071,6 @@
 
 /* Define to 1 if the X Window System is missing or not being used. */
 #undef X_DISPLAY_MISSING
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

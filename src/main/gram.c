@@ -351,7 +351,7 @@ static SEXP	xxfuncall(SEXP, SEXP);
 static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
-static SEXP     xxassign(SEXP, SEXP, SEXP);
+static SEXP	xxassign(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
 static SEXP	xxsubscript(SEXP, SEXP, SEXP);
 static SEXP	xxexprlist(SEXP, YYLTYPE *, SEXP);
@@ -2790,7 +2790,7 @@ static SEXP makeSrcref(YYLTYPE *lloc, SEXP srcfile, unsigned int bin_index)
 {
     SEXP val;
 
-    if (bin_index > 0) {
+    if (TIME_R_ENABLED && bin_index > 0) {
         PROTECT(val = allocVector(INTSXP, 9));
         INTEGER(val)[8] = bin_index;
     } else
@@ -3188,17 +3188,16 @@ static SEXP xxdefun(SEXP fname, SEXP formals, SEXP body, YYLTYPE *lloc)
 
     if (GenerateCode) {
     	if (ParseState.keepSrcRefs) {
-            unsigned int bin_index;
-            char nametmp[1024];
+	    unsigned int bin_index;
 
-            bin_index = timeR_add_userfn_bin();
+	    bin_index = timeR_add_userfn_bin();
 	    srcref = makeSrcref(lloc, ParseState.SrcFile, bin_index);
     	    ParseState.didAttach = TRUE;
 
-            timeR_name_bin_anonfunc(INTEGER(srcref)[8],
-                                    getSrcFileName(srcref),
-                                    lloc->first_line,
-                                    lloc->first_column);
+	    timeR_name_bin_anonfunc(INTEGER(srcref)[8],
+				    getSrcFileName(srcref),
+				    lloc->first_line,
+				    lloc->first_column);
     	} else
     	    srcref = R_NilValue;
 	PROTECT(ans = lang4(fname, CDR(formals), body, srcref));
@@ -3238,29 +3237,30 @@ static SEXP xxassign(SEXP n1, SEXP n2, SEXP n3)
     SEXP ans = xxbinary(n1, n2, n3);
 
     if (function_symbol == NULL)
-        function_symbol = install("function");
+	function_symbol = install("function");
 
-    if (isSymbol(n2)      &&
-        isLanguage(n3)    &&
-        isSymbol(CAR(n3)) &&
-        CAR(n3) == function_symbol) {
-        SEXP srcref = CADDDR(n3);
+    if (TIME_R_ENABLED    &&
+	isSymbol(n2)      &&
+	isLanguage(n3)    &&
+	isSymbol(CAR(n3)) &&
+	CAR(n3) == function_symbol) {
+	SEXP srcref = CADDDR(n3);
 
-        if (srcref != R_NilValue &&
-            TYPEOF(srcref) == INTSXP &&
-            LENGTH(srcref) > 8) {
-            /* replace the default "anon" function name with the LHS symbol name */
-            SEXP srcref = CADDDR(n3);
-            if (LENGTH(srcref) > 8) {
-                char nametmp[1024];
+	if (srcref != R_NilValue &&
+	    TYPEOF(srcref) == INTSXP &&
+	    LENGTH(srcref) > 8) {
+	    /* replace the default "anon" function name with the LHS symbol name */
+	    SEXP srcref = CADDDR(n3);
+	    if (LENGTH(srcref) > 8) {
+		char nametmp[1024];
 
-                nametmp[sizeof(nametmp) - 1] = 0;
-                snprintf(nametmp, sizeof(nametmp), "%s:%s", getSrcFileName(srcref),
-                         CHAR(PRINTNAME(n2)));
+		nametmp[sizeof(nametmp) - 1] = 0;
+		snprintf(nametmp, sizeof(nametmp), "%s:%s", getSrcFileName(srcref),
+			 CHAR(PRINTNAME(n2)));
 
-                timeR_name_bin(INTEGER(srcref)[8], nametmp);
-            }
-        }
+		timeR_name_bin(INTEGER(srcref)[8], nametmp);
+	    }
+	}
     }
 
     return ans;
@@ -3669,10 +3669,10 @@ SEXP R_Parse1Buffer(IoBuffer *buffer, int gencode, ParseStatus *status, const ch
     R_InitSrcRefState(&ParseState);
     savestack = R_PPStackTop;       
     if (gencode) {
-	keepSource = asLogical(GetOption1(install("keep.source")));
-
-        if (TIME_R_ENABLED)
-            keepSource = 1;
+	if (TIME_R_ENABLED)
+	    keepSource = 1;
+	else
+	    keepSource = asLogical(GetOption1(install("keep.source")));
 
     	if (keepSource) {
     	    ParseState.keepSrcRefs = TRUE;
@@ -3680,8 +3680,8 @@ SEXP R_Parse1Buffer(IoBuffer *buffer, int gencode, ParseStatus *status, const ch
 	    REPROTECT(ParseState.Original = ParseState.SrcFile, ParseState.OriginalProt);
 	    PROTECT_WITH_INDEX(SrcRefs = NewList(), &srindex);
 
-            PROTECT(srcname = mkString(sourcename));
-            setParseFilename(srcname);
+	    PROTECT(srcname = mkString(sourcename));
+	    setParseFilename(srcname);
 	}
     }
     ParseInit();

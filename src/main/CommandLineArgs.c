@@ -245,6 +245,7 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		    R_ShowMessage(_("WARNING: '--max-ppsize' value is too large: ignored"));
 		else Rp->ppsize = (size_t) lval;
 	    }
+#ifdef HAVE_TIME_R
 	    else if(strncmp(*av, "--timeR-file", 12) == 0) {
 		if(strlen(*av) < 14) {
 		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
@@ -259,6 +260,7 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		    free(timeR_output_file);
 		timeR_output_file = strdup(p);
 	    }
+#endif
 	    else { /* unknown -option */
 		argv[newac++] = *av;
 	    }

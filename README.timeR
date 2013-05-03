@@ -41,10 +41,10 @@ Partially reached design goals:
   passing in main.c)
 
 Still incomplete:
-- autoconf integration, including compile-time disable
 - comments explaining mptr->measurement->bin hierarchy
 - not fully compatible with old timeR
 - only one time measurement method implemented
+  - autoconf-selectable timing methods
 - overhead measurements
 
 Open issues:

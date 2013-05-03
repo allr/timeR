@@ -1,6 +1,8 @@
 #ifndef TIME_R_H
 #define TIME_R_H
 
+#ifdef HAVE_TIME_R
+
 #include <assert.h>
 #include "timeR-config.h"
 #include "timeR-posix.h"
@@ -257,16 +259,46 @@ void         timeR_release(tr_measureptr_t *marker);
 char *timeR_output_file;
 
 /* convenience macros */
-#define BEGIN_TIMER(bin) \
-  tr_measureptr_t rtm_mptr_##bin = timeR_begin_timer(bin)
+#  define BEGIN_TIMER(bin) \
+    tr_measureptr_t rtm_mptr_##bin = timeR_begin_timer(bin)
 
-#define END_TIMER(bin) \
-  timeR_end_timer(&rtm_mptr_##bin);
+#  define END_TIMER(bin) \
+    timeR_end_timer(&rtm_mptr_##bin);
 
-#define MARK_TIMER() \
+#  define MARK_TIMER() \
     tr_measureptr_t rtm_mptr_marker = timeR_mark()
 
-#define RELEASE_TIMER() \
+#  define RELEASE_TIMER() \
     timeR_release(&rtm_mptr_marker)
 
-#endif
+#else
+
+  // timeR not enabled in configure
+#  define TIME_R_ENABLED 0
+
+static inline void timeR_init_early(void)   {}
+static inline void timeR_startup_done(void) {}
+static inline void timeR_finish(void)       {}
+static inline void MARK_TIMER(void)         {}
+static inline void RELEASE_TIMER(void)      {}
+
+static inline unsigned int timeR_add_userfn_bin(void) {
+    return 0;
+}
+
+static inline void timeR_name_bin(unsigned int bin_id, char *name) {}
+static inline void timeR_name_bin_anonfunc(unsigned int bin_id,
+					   const char *file,
+					   unsigned int line,
+					   unsigned int pos) {}
+
+  // avoids an #ifdef in eval.c
+#  define TR_UserFuncFallback 0
+
+  // defined as macros to ensure the parameter is not parsed
+#  define BEGIN_TIMER(unused) do {} while (0)
+#  define END_TIMER(unused)   do {} while (0)
+
+#endif // HAVE_TIME_R
+
+#endif // TIME_R_H

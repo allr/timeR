@@ -194,6 +194,19 @@ AC_SUBST(config_opts)
 
 ### ** Optional features.
 
+## Allow the user to specify support for timeR deterministoc profiling.
+AC_ARG_ENABLE([timeR],
+[AS_HELP_STRING([--enable-timeR],[attempt to compile support for timeR @<:@no@:>@])],
+[if test "${enableval}" = no; then
+  want_timeR=no
+elif test "${enableval}" = yes; then
+  want_timeR=yes
+else
+  want_timeR=no
+fi],
+[want_timeR=no])
+AM_CONDITIONAL(WANT_TIME_R, [test "x${want_timeR}" = xyes])
+
 ## Allow the user to specify support for R profiling.
 AC_ARG_ENABLE([R-profiling],
 [AS_HELP_STRING([--enable-R-profiling],[attempt to compile support for Rprof() @<:@yes@:>@])],
@@ -2218,6 +2231,11 @@ R_SYS_POSIX_LEAPSECONDS
 ## stat times
 gl_STAT_TIME
  
+## timeR profiling.
+if test "${want_timeR}" = yes; then
+  AC_DEFINE(HAVE_TIME_R, 1, [Define this to enable timeR deterministic profiling.])
+fi
+
 ## R profiling.
 if test "${want_R_profiling}" = yes; then
   AC_CHECK_FUNCS(setitimer,
@@ -2746,6 +2764,9 @@ elif test "${want_R_static}" = yes; then
 fi
 if test "${use_blas_shlib}" = yes; then
   R_SH_VAR_ADD(r_options, [shared BLAS], [, ])
+fi
+if test "${want_timeR}" = yes; then
+  R_SH_VAR_ADD(r_options, [timeR profiling], [, ])
 fi
 if test "${want_R_profiling}" = yes; then
   R_SH_VAR_ADD(r_options, [R profiling], [, ])

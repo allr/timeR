@@ -919,7 +919,8 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
     SEXP cursrcref = R_GetCurrentSrcref(0);
     unsigned int timeR_bin_id = TR_UserFuncFallback;
 
-    if (cursrcref != R_NilValue &&
+    if (TIME_R_ENABLED              &&
+        cursrcref != R_NilValue     &&
         TYPEOF(cursrcref) == INTSXP &&
         LENGTH(cursrcref) > 8)
         timeR_bin_id = INTEGER(cursrcref)[8];
