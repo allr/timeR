@@ -127,7 +127,6 @@ typedef struct {
 void timeR_init_early(void);
 void timeR_startup_done(void);
 void timeR_finish(void);
-void timeR_dump(FILE *fd);
 
 /* exposed internal state for the fast path inlines */
 extern tr_timer_t  *timeR_measureblocks[TIME_R_MAX_MBLOCKS];

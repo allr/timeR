@@ -127,6 +127,15 @@ static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
             timeR_bins[id].aborts);
 }
 
+static void timeR_dump(FILE *fd) {
+    // FIXME: Check for errors
+    fprintf(fd, "name,exclusive,complete,starts,aborts\n");
+
+    for (unsigned int i = 0; i < next_bin; i++) {
+	timeR_print_bin(fd, i);
+    }
+}
+
 
 /*** exported functions ***/
 
@@ -202,15 +211,6 @@ void timeR_finish(void) {
 
     // FIXME: Check for errors
     fclose(fd);
-}
-
-void timeR_dump(FILE *fd) {
-    // FIXME: Check for errors
-    fprintf(fd, "name,exclusive,complete,starts,aborts\n");
-
-    for (unsigned int i = 0; i < next_bin; i++) {
-	timeR_print_bin(fd, i);
-    }
 }
 
 void timeR_measureblock_full(void) {
