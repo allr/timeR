@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#define TIME_R_UNIT "1 ns"
+
 typedef long long timeR_t;
 
 /* read the current time */

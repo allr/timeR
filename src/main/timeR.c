@@ -4,10 +4,15 @@
 
 // FIXME: s/mbindex/blockidx/ for clarity
 
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include "timeR.h"
 
 /* names of the static bins
@@ -120,17 +125,44 @@ static tr_measureptr_t startup_mptr;
 /*** internal functions ***/
 
 static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
-    fprintf(fd, "%s,%lld,%lld,%llu,%llu\n",
+    fprintf(fd, "%s\t" "%lld\t" "%lld\t" "0\t" "%llu\t" "%llu\n",
             timeR_bins[id].name,
             timeR_bins[id].sum_exclusive,
             timeR_bins[id].sum_complete,
-            timeR_bins[id].starts,
-            timeR_bins[id].aborts);
+            timeR_bins[id].aborts,
+            timeR_bins[id].starts);
 }
 
 static void timeR_dump(FILE *fd) {
-    // FIXME: Check for errors
-    fprintf(fd, "name,exclusive,complete,starts,aborts\n");
+    // FIXME: Check for errors in fprintfs
+    struct rusage my_rusage;
+    char strbuf[PATH_MAX+1];
+    time_t now;
+
+    if (getcwd(strbuf, sizeof(strbuf)) != NULL) {
+	fprintf(fd, "Workdir %s\n", strbuf);
+    }
+
+    now = time(NULL);
+    fprintf(fd, "TraceDate %s", ctime(&now));
+
+    getrusage(RUSAGE_SELF, &my_rusage);
+    fprintf(fd, "RusageMaxResidentMemorySet %ld\n", my_rusage.ru_maxrss);
+    fprintf(fd, "RusageSharedMemSize %ld\n", my_rusage.ru_ixrss);
+    fprintf(fd, "RusageUnsharedDataSize %ld\n", my_rusage.ru_idrss);
+    fprintf(fd, "RusagePageReclaims %ld\n", my_rusage.ru_minflt);
+    fprintf(fd, "RusagePageFaults %ld\n", my_rusage.ru_majflt);
+    fprintf(fd, "RusageSwaps %ld\n", my_rusage.ru_nswap);
+    fprintf(fd, "RusageBlockInputOps %ld\n", my_rusage.ru_inblock);
+    fprintf(fd, "RusageBlockOutputOps %ld\n", my_rusage.ru_oublock);
+    fprintf(fd, "RusageIPCSends %ld\n", my_rusage.ru_msgsnd);
+    fprintf(fd, "RusageIPCRecv %ld\n", my_rusage.ru_msgrcv);
+    fprintf(fd, "RusageSignalsRcvd %ld\n", my_rusage.ru_nsignals);
+    fprintf(fd, "RusageVolnContextSwitches %ld\n", my_rusage.ru_nvcsw);
+    fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
+    fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
+
+    fprintf(fd, "# name\texclusive\tcomplete\tstarts\t aborts\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
 	timeR_print_bin(fd, i);

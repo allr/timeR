@@ -6,9 +6,16 @@ Compilation notes:
   https://en.wikipedia.org/wiki/Time_Stamp_Counter
 
 Usage:
-  R --timeR-file foo.csv <other parameters>
+  R --timeR-file foo.txt <other parameters>
 
-Output is currently in "CSV" format, will probably change though
+The output is a few informational lines in "keyword<whitespace>value"
+format followed by a single comment line starting with #, after
+which the timers are dumped in tab-delimited format. The colums
+are the timer name, the time accumulated on this timer (excluding
+child timers), the complete time accumulated on this timer
+(including child timers), a single 0 (for compatibility),
+the number of times this timer was stopped implicitly and
+the number of times this timer was started.
 
 Design goals:
 - mostly compatible with old timeR
