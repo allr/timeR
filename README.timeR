@@ -52,7 +52,7 @@ Partially reached design goals:
   (partial function execution and error path are added
    to the functions's timer now, was the caller's timer before)
 - changes in R are more extensive than preferred (e.g. file name
-  passing in main.c)
+  passing in main.c; (de)serialization)
 
 Still incomplete:
 - comments explaining mptr->measurement->bin hierarchy
@@ -60,17 +60,14 @@ Still incomplete:
 - overhead measurements
 
 Open issues:
-- detection of current file name for naming timed user functions
-  is broken
 - name "dropped time" should be changed
   ("overhead" does not encompass all uses of the concept:
    inSock* also utilize the flag)
 - (re)allocation sizes are not sensible
 - bin IDs stay attached at serialisation (not critical, just inelegant)
-- function names are lost at serialisation and replaced
-  with anonymous names at deserialisation
 - wrapping of every SETJMP is extremely ugly, can't handle by wrapping
   in a function though (would return to invalid stack frame)
+- duplicate entries in user function timers
 
 Possible future extensions:
 - check if a reasonable file name can be generated when source() is used

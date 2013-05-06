@@ -1,6 +1,8 @@
 #ifndef TIME_R_H
 #define TIME_R_H
 
+#define TIME_R_BIN_NAME_ATTR "timeR_bin_name"
+
 #ifdef HAVE_TIME_R
 
 #include <assert.h>
@@ -261,10 +263,14 @@ static inline tr_measureptr_t timeR_mark(void) {
 }
 
 unsigned int timeR_add_userfn_bin(void);
-void         timeR_name_bin(unsigned int bin_id, char *name);
+void         timeR_name_bin(unsigned int bin_id, const char *name);
 void         timeR_name_bin_anonfunc(unsigned int bin_id, const char *file,
                                      unsigned int line, unsigned int pos);
 void         timeR_release(tr_measureptr_t *marker);
+
+static const char *timeR_get_bin_name(unsigned int bin_id) {
+  return timeR_bins[bin_id].name;
+}
 
 char *timeR_output_file;
 
@@ -296,11 +302,15 @@ static inline unsigned int timeR_add_userfn_bin(void) {
     return 0;
 }
 
-static inline void timeR_name_bin(unsigned int bin_id, char *name) {}
+static inline void timeR_name_bin(unsigned int bin_id, const char *name) {}
 static inline void timeR_name_bin_anonfunc(unsigned int bin_id,
 					   const char *file,
 					   unsigned int line,
 					   unsigned int pos) {}
+
+static const char * timeR_get_bin_name(unsigned int bin_id) {
+  return "";
+}
 
   // avoids an #ifdef in eval.c
 #  define TR_UserFuncFallback 0

@@ -125,12 +125,12 @@ static tr_measureptr_t startup_mptr;
 /*** internal functions ***/
 
 static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
-    fprintf(fd, "%s\t" "%lld\t" "%lld\t" "0\t" "%llu\t" "%llu\n",
+    fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\n",
             timeR_bins[id].name,
             timeR_bins[id].sum_exclusive,
             timeR_bins[id].sum_complete,
-            timeR_bins[id].aborts,
-            timeR_bins[id].starts);
+            timeR_bins[id].starts,
+            timeR_bins[id].aborts);
 }
 
 static void timeR_dump(FILE *fd) {
@@ -162,7 +162,7 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
     fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
 
-    fprintf(fd, "# name\texclusive\tcomplete\tstarts\t aborts\n");
+    fprintf(fd, "# name\texclusive\tcomplete\tstarts\taborts\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
 	timeR_print_bin(fd, i);
@@ -326,7 +326,7 @@ unsigned int timeR_add_userfn_bin(void) {
     return next_bin++;
 }
 
-void timeR_name_bin(unsigned int bin_id, char *name) {
+void timeR_name_bin(unsigned int bin_id, const char *name) {
     /* create permanent copy of name */
     char *copy = strdup(name);
     if (!copy)
