@@ -76,6 +76,7 @@ typedef enum {
     TR_Match,
     TR_dotBuiltIn,
     TR_Eval,
+    TR_bcEval,
 
     // internet.c
     TR_Download,

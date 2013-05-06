@@ -65,6 +65,7 @@ static char *bin_names[TR_FirstUserBin] = {
     "Match",
     "dotBuiltIn",
     "Eval",
+    "bcEval",
 
     // internet.c
     "Download",

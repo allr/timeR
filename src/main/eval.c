@@ -4138,6 +4138,8 @@ static R_INLINE void checkForMissings(SEXP args, SEXP call)
 
 static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 {
+  BEGIN_TIMER(TR_bcEval);
+
   SEXP value, constants;
   BCODE *pc, *codebase;
   int ftype = 0;
@@ -4160,8 +4162,11 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
   constants = BCCONSTS(body);
 
   /* allow bytecode to be disabled for testing */
-  if (R_disable_bytecode)
-      return eval(bytecodeExpr(body), rho);
+  if (R_disable_bytecode) {
+      SEXP ans = eval(bytecodeExpr(body), rho);
+      END_TIMER(TR_bcEval);
+      return ans;
+  }
 
   /* check version */
   {
@@ -4173,7 +4178,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 		  warned = TRUE;
 		  warning(_("bytecode version mismatch; using eval"));
 	      }
-	      return eval(bytecodeExpr(body), rho);
+	      SEXP ans = eval(bytecodeExpr(body), rho);
+	      END_TIMER(TR_bcEval);
+	      return ans;
 	  }
 	  else if (version < R_bcMinVersion)
 	      error(_("bytecode version is too old"));
@@ -5026,6 +5033,7 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 #ifdef BC_PROFILING
   current_opcode = old_current_opcode;
 #endif
+  END_TIMER(TR_bcEval);
   return value;
 }
 
