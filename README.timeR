@@ -19,7 +19,6 @@ the number of times this timer was started.
 
 Design goals:
 - mostly compatible with old timeR
-- minimal amount of changes in R code
 - introduces no failures in R selftests ("make check")
 - no new #ifdefs in R code
 - capable of measuring its own overhead where required
@@ -51,8 +50,6 @@ Partially reached design goals:
 - time accounting in case of errors differs from old timeR
   (partial function execution and error path are added
    to the functions's timer now, was the caller's timer before)
-- changes in R are more extensive than preferred (e.g. file name
-  passing in main.c; (de)serialization)
 
 Still incomplete:
 - comments explaining mptr->measurement->bin hierarchy
@@ -63,7 +60,6 @@ Open issues:
 - name "dropped time" should be changed
   ("overhead" does not encompass all uses of the concept:
    inSock* also utilize the flag)
-- (re)allocation sizes are not sensible
 - bin IDs stay attached at serialisation (not critical, just inelegant)
 - wrapping of every SETJMP is extremely ugly, can't handle by wrapping
   in a function though (would return to invalid stack frame)

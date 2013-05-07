@@ -13,12 +13,14 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <Defn.h>
 #include "timeR.h"
 
 /* names of the static bins
  * must be in sync with tr_bin_id_t in timeR.h!
  */
-static char *bin_names[TR_FirstUserBin] = {
+static char *bin_names[TR_StaticBinCount] = {
     // internal
     "Startup",
     "TimingOverhead",
@@ -114,7 +116,7 @@ tr_timer_t  *timeR_current_mblock;
 unsigned int timeR_next_mindex; // always points to a free timer entry
 
 /* bins */
-static unsigned int next_bin = TR_FirstUserBin;
+static unsigned int next_bin = TR_StaticBinCount;
 static unsigned int bin_count;
 tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
@@ -193,13 +195,13 @@ void timeR_init_early(void) {
     timeR_next_mindex = 1; // the very first timer is just a canary
 
     /* initialize static bins */
-    timeR_bins = calloc(TR_FirstUserBin + TIME_R_INITIAL_USERFUNC_BINS, sizeof(tr_bin_t));
+    timeR_bins = calloc(TR_StaticBinCount + TIME_R_INITIAL_EMPTY_BINS, sizeof(tr_bin_t));
     if (timeR_bins == NULL) {
 	fprintf(stderr, "ERROR: Failed to allocate the timing bins!\n");
 	exit(2);
     }
 
-    bin_count = TR_FirstUserBin + TIME_R_INITIAL_USERFUNC_BINS;
+    bin_count = TR_StaticBinCount + TIME_R_INITIAL_EMPTY_BINS;
 
     for (i = 0; i < next_bin; i++) {
 	timeR_bins[i].name = bin_names[i];
@@ -210,6 +212,25 @@ void timeR_init_early(void) {
     timeR_bins[TR_inSockWrite].drop   = 1;
     timeR_bins[TR_inSockOpen].drop    = 1;
     timeR_bins[TR_inSockConnect].drop = 1;
+
+    /* add bins for the .Internal/.Primitive functions */
+    char fnname[1024];
+
+    i = 0;
+    while (R_FunTab[i].name != NULL) {
+	unsigned int bin_id = timeR_add_userfn_bin();
+
+	if ((R_FunTab[i].eval / 10) % 10 == 1) {
+	    // .Internal
+	    snprintf(fnname, sizeof(fnname), "<.Internal>:%s", R_FunTab[i].name);
+	} else {
+	    // .Primitive
+	    snprintf(fnname, sizeof(fnname), "<.Primitive>:%s", R_FunTab[i].name);
+	}
+	timeR_name_bin(bin_id, fnname);
+
+	i++;
+    }
 
     /* measure the startup time of R */
     startup_mptr = timeR_begin_timer(TR_Startup);
@@ -308,7 +329,7 @@ unsigned int timeR_add_userfn_bin(void) {
     if (next_bin >= bin_count) {
         // FIXME: consider switching to (limited?) exponential resizes
 	tr_bin_t *newbins =
-	    realloc(timeR_bins, (bin_count + TIME_R_INITIAL_USERFUNC_BINS) *
+	    realloc(timeR_bins, (bin_count + TIME_R_REALLOC_BINS) *
 	                  sizeof(tr_bin_t));
 
 	if (newbins == NULL)
@@ -316,11 +337,11 @@ unsigned int timeR_add_userfn_bin(void) {
 	    return TR_UserFuncFallback;
 
 	/* clear the new entries */
-	memset(newbins + bin_count, 0, sizeof(tr_bin_t) * TIME_R_INITIAL_USERFUNC_BINS);
+	memset(newbins + bin_count, 0, sizeof(tr_bin_t) * TIME_R_REALLOC_BINS);
 
 	/* update bookkeeping */
 	timeR_bins = newbins;
-	bin_count += TIME_R_INITIAL_USERFUNC_BINS;
+	bin_count += TIME_R_REALLOC_BINS;
     }
 
     return next_bin++;

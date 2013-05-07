@@ -583,7 +583,9 @@ SEXP eval(SEXP e, SEXP rho)
 	    const void *vmax = vmaxget();
 	    PROTECT(CDR(e));
 	    R_Visible = flag != 1;
+	    BEGIN_INTERNAL_TIMER(PRIMOFFSET(op));
 	    tmp = PRIMFUN(op) (e, op, CDR(e), rho);
+	    END_INTERNAL_TIMER(PRIMOFFSET(op));
 #ifdef CHECK_VISIBILITY
 	    if(flag < 2 && R_Visible == flag) {
 		char *nm = PRIMNAME(op);
@@ -612,11 +614,15 @@ SEXP eval(SEXP e, SEXP rho)
 		R_Srcref = NULL;
 		begincontext(&cntxt, CTXT_BUILTIN, e,
 			     R_BaseEnv, R_BaseEnv, R_NilValue, R_NilValue);
+		BEGIN_INTERNAL_TIMER(PRIMOFFSET(op));
 		tmp = PRIMFUN(op) (e, op, tmp, rho);
+		END_INTERNAL_TIMER(PRIMOFFSET(op));
 		R_Srcref = oldref;
 		endcontext(&cntxt);
 	    } else {
+		BEGIN_INTERNAL_TIMER(PRIMOFFSET(op));
 		tmp = PRIMFUN(op) (e, op, tmp, rho);
+		END_INTERNAL_TIMER(PRIMOFFSET(op));
 	    }
 #ifdef CHECK_VISIBILITY
 	    if(flag < 2 && R_Visible == flag) {
@@ -4585,13 +4591,17 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  checkForMissings(args, call);
 	  flag = PRIMPRINT(fun);
 	  R_Visible = flag != 1;
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, args, rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  if (flag < 2) R_Visible = flag != 1;
 	  break;
 	case SPECIALSXP:
 	  flag = PRIMPRINT(fun);
 	  R_Visible = flag != 1;
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, CDR(call), rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  if (flag < 2) R_Visible = flag != 1;
 	  break;
 	case CLOSXP:
@@ -4615,7 +4625,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  error(_("not a BUILTIN function"));
 	flag = PRIMPRINT(fun);
 	R_Visible = flag != 1;
+	BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	value = PRIMFUN(fun) (call, fun, args, rho);
+	END_INTERNAL_TIMER(PRIMOFFSET(fun));
 	if (flag < 2) R_Visible = flag != 1;
 	vmaxset(vmax);
 	R_BCNodeStackTop -= 2;
@@ -4636,7 +4648,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	BCNPUSH(fun);  /* for GC protection */
 	flag = PRIMPRINT(fun);
 	R_Visible = flag != 1;
+	BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	value = PRIMFUN(fun) (call, fun, CDR(call), rho);
+	END_INTERNAL_TIMER(PRIMOFFSET(fun));
 	if (flag < 2) R_Visible = flag != 1;
 	vmaxset(vmax);
 	SETSTACK(-1, value); /* replaces fun on stack */
@@ -4888,7 +4902,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  SETCAR(args, lhs);
 	  /* make the call */
 	  checkForMissings(args, call);
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, args, rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  break;
 	case SPECIALSXP:
 	  /* duplicate arguments and put into stack for GC protection */
@@ -4906,7 +4922,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  SET_PRVALUE(prom, rhs);
 	  SETCAR(last, prom);
 	  /* make the call */
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, args, rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  break;
 	case CLOSXP:
 	  /* push evaluated promise for RHS onto arguments with 'value' tag */
@@ -4942,7 +4960,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  SETCAR(args, lhs);
 	  /* make the call */
 	  checkForMissings(args, call);
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, args, rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  break;
 	case SPECIALSXP:
 	  /* duplicate arguments and put into stack for GC protection */
@@ -4953,7 +4973,9 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  SET_PRVALUE(prom, lhs);
 	  SETCAR(args, prom);
 	  /* make the call */
+	  { BEGIN_INTERNAL_TIMER(PRIMOFFSET(fun));
 	  value = PRIMFUN(fun) (call, fun, args, rho);
+	  END_INTERNAL_TIMER(PRIMOFFSET(fun)); }
 	  break;
 	case CLOSXP:
 	  /* replace first argument with evaluated promise for LHS */

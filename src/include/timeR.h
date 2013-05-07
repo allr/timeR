@@ -110,8 +110,8 @@ typedef enum {
     // sys-unix.c
     TR_System,
 
-    /* must be the last entry */
-    TR_FirstUserBin
+    /* must be the last entry, is assumed to be the first R_FunTab timer */
+    TR_StaticBinCount
 } tr_bin_id_t;
 
 /* timing bin: accumulates measured times */
@@ -279,13 +279,20 @@ char *timeR_output_file;
     tr_measureptr_t rtm_mptr_##bin = timeR_begin_timer(bin)
 
 #  define END_TIMER(bin) \
-    timeR_end_timer(&rtm_mptr_##bin);
+    timeR_end_timer(&rtm_mptr_##bin)
 
 #  define MARK_TIMER() \
     tr_measureptr_t rtm_mptr_marker = timeR_mark()
 
 #  define RELEASE_TIMER() \
     timeR_release(&rtm_mptr_marker)
+
+/* abstraction to keep the offset out of the main R code */
+#  define BEGIN_INTERNAL_TIMER(id) \
+    tr_measureptr_t rtm_mptr_internal = timeR_begin_timer((id) + TR_StaticBinCount)
+
+#  define END_INTERNAL_TIMER(id) \
+    timeR_end_timer(&rtm_mptr_internal)
 
 #else
 
@@ -316,8 +323,10 @@ static const char * timeR_get_bin_name(unsigned int bin_id) {
 #  define TR_UserFuncFallback 0
 
   // defined as macros to ensure the parameter is not parsed
-#  define BEGIN_TIMER(unused) do {} while (0)
-#  define END_TIMER(unused)   do {} while (0)
+#  define BEGIN_TIMER(unused)      do {} while (0)
+#  define END_TIMER(unused)        do {} while (0)
+#  define BEGIN_INTERNAL_TIMER(id) do {} while (0)
+#  define END_INTERNAL_TIMER(id)   do {} while (0)
 
 #endif // HAVE_TIME_R
 
