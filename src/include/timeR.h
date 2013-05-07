@@ -272,7 +272,8 @@ static const char *timeR_get_bin_name(unsigned int bin_id) {
   return timeR_bins[bin_id].name;
 }
 
-char *timeR_output_file;
+extern char *timeR_output_file;
+extern int   timeR_reduced_output;
 
 /* convenience macros */
 #  define BEGIN_TIMER(bin) \

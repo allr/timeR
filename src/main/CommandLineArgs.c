@@ -260,6 +260,10 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		    free(timeR_output_file);
 		timeR_output_file = strdup(p);
 	    }
+
+	    else if(strncmp(*av, "--timeR-quiet", 13) == 0) {
+		timeR_reduced_output = 1;
+	    }
 #endif
 	    else { /* unknown -option */
 		argv[newac++] = *av;

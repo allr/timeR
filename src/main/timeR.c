@@ -123,10 +123,15 @@ tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 /* additional hardcoded timers */
 static tr_measureptr_t startup_mptr;
 
+char *timeR_output_file;
+int   timeR_reduced_output;
 
 /*** internal functions ***/
 
 static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
+    if (timeR_reduced_output && timeR_bins[id].starts == 0)
+	return;
+
     fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\n",
             timeR_bins[id].name,
             timeR_bins[id].sum_exclusive,
