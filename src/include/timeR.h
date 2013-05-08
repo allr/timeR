@@ -248,6 +248,18 @@ static inline void timeR_end_timer(const tr_measureptr_t *mptr) {
         timeR_next_mindex    != mptr->index) {
         timeR_bins[timeR_current_mblock[timeR_next_mindex].bin_id].aborts++;
         timeR_end_timers_slowpath(mptr, endtime, prev_diff, prev_drop);
+    } else {
+	/* add elapsed time to the top-level active timer */
+	// FIXME: duplication from timeR_end_timers_slowpath
+	tr_timer_t *m;
+
+	if (timeR_next_mindex == 0) {
+	    m = &timeR_measureblocks[timeR_current_mblockidx - 1][TIME_R_MBLOCK_SIZE - 1];
+	} else {
+	    m = &timeR_current_mblock[timeR_next_mindex - 1];
+	}
+
+	m->lower_sum += prev_diff;
     }
 }
 
