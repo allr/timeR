@@ -148,6 +148,7 @@ extern tr_timer_t  *timeR_current_mblock;
 extern unsigned int timeR_current_mblockidx;
 extern unsigned int timeR_next_mindex;
 extern tr_bin_t    *timeR_bins;
+extern timeR_t      timeR_current_lower_sum;
 
 /* slow path functions for the fast path inlines */
 void timeR_measureblock_full(void);
@@ -167,8 +168,9 @@ static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
     mptr.curblock = timeR_current_mblock;
     mptr.index    = timeR_next_mindex;
 
-    timeR_current_mblock[timeR_next_mindex].lower_sum    = 0;
+    timeR_current_mblock[timeR_next_mindex].lower_sum    = timeR_current_lower_sum;
     timeR_current_mblock[timeR_next_mindex].dropped_time = 0;
+    timeR_current_lower_sum                              = 0;
 
     /* check if the measurement block is full */
     if (++timeR_next_mindex >= TIME_R_MBLOCK_SIZE)
@@ -214,13 +216,14 @@ static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, tim
     bin->sum_complete += diff;
 
     /* calculate final amount of time spent in lower-level timers */
-    tmp = m->lower_sum + *prev_diff;
+    tmp = timeR_current_lower_sum + *prev_diff;
     if (diff >= tmp) {
         /* don't add negative values to exclusive time */
         bin->sum_exclusive += diff - tmp;
     } else {
         fprintf(stderr, "*** WARNING: Negative exclusive time!\n");
     }
+    timeR_current_lower_sum = m->lower_sum;
 
     /* add dropped time */
     m->dropped_time += *prev_drop;
@@ -250,16 +253,7 @@ static inline void timeR_end_timer(const tr_measureptr_t *mptr) {
         timeR_end_timers_slowpath(mptr, endtime, prev_diff, prev_drop);
     } else {
 	/* add elapsed time to the top-level active timer */
-	// FIXME: duplication from timeR_end_timers_slowpath
-	tr_timer_t *m;
-
-	if (timeR_next_mindex == 0) {
-	    m = &timeR_measureblocks[timeR_current_mblockidx - 1][TIME_R_MBLOCK_SIZE - 1];
-	} else {
-	    m = &timeR_current_mblock[timeR_next_mindex - 1];
-	}
-
-	m->lower_sum += prev_diff;
+	timeR_current_lower_sum += prev_diff;
     }
 }
 

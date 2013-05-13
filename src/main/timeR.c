@@ -114,6 +114,7 @@ tr_timer_t  *timeR_measureblocks[TIME_R_MAX_MBLOCKS];
 unsigned int timeR_current_mblockidx;
 tr_timer_t  *timeR_current_mblock;
 unsigned int timeR_next_mindex; // always points to a free timer entry
+timeR_t      timeR_current_lower_sum;
 
 /* bins */
 static unsigned int next_bin = TR_StaticBinCount;
@@ -320,13 +321,7 @@ void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
              timeR_next_mindex    != mptr->index);
 
     /* add last difference in the top-level active timer */
-    if (timeR_next_mindex == 0) {
-	m = &timeR_measureblocks[timeR_current_mblockidx - 1][TIME_R_MBLOCK_SIZE - 1];
-    } else {
-	m = &timeR_current_mblock[timeR_next_mindex-1];
-    }
-
-    m->lower_sum += prev_diff;
+    timeR_current_lower_sum += prev_diff;
 }
 
 unsigned int timeR_add_userfn_bin(void) {
