@@ -928,8 +928,11 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
     if (TIME_R_ENABLED              &&
         cursrcref != R_NilValue     &&
         TYPEOF(cursrcref) == INTSXP &&
-        LENGTH(cursrcref) > 8)
+        LENGTH(cursrcref) > 8) {
         timeR_bin_id = INTEGER(cursrcref)[8];
+        if (TYPEOF(body) == BCODESXP)
+	    timeR_mark_bcode(timeR_bin_id);
+    }
 
     BEGIN_TIMER(timeR_bin_id);
 

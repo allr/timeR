@@ -13,9 +13,10 @@ format followed by a single comment line starting with #, after
 which the timers are dumped in tab-delimited format. The colums
 are the timer name, the time accumulated on this timer (excluding
 child timers), the complete time accumulated on this timer
-(including child timers), a single 0 (for compatibility),
+(including child timers), the number of times this timer was started,
 the number of times this timer was stopped implicitly and
-the number of times this timer was started.
+a 0/1 indicator that is 1 if at least one execution of the function
+used a byte-compiled version or 0 if it was always interpreted.
 
 Design goals:
 - mostly compatible with old timeR

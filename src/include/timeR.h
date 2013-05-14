@@ -122,6 +122,7 @@ typedef struct {
     unsigned long long starts;        /* number of times this bin started accumulating */
     unsigned long long aborts;        /* number of times this bin implicitly ended */
     unsigned int       drop:1;        /* do not include this bin in caller bins */
+    unsigned int       bcode:1;       /* a user function was evaluated in byte-compiled form */
 } tr_bin_t;
 
 /* timer element: instanced for each time timer */
@@ -266,6 +267,11 @@ static inline tr_measureptr_t timeR_mark(void) {
     mptr.index    = timeR_next_mindex;
 
     return mptr;
+}
+
+/* set the bcode flag in a time bin */
+static inline void timeR_mark_bcode(unsigned int bin_id) {
+    timeR_bins[bin_id].bcode = 1;
 }
 
 unsigned int timeR_add_userfn_bin(void);
