@@ -33,7 +33,6 @@ while (<>) {
     } else {
         # new bin, just copy
         $bins{$name} = \@elems;
-        say join(" / ", @{$bins{$name}});
         push @binorder, $name;
     }
 }
