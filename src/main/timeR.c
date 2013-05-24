@@ -82,7 +82,7 @@ static char *bin_names[TR_StaticBinCount] = {
 
     // main.c
     "Repl",
-    "Mainloop",
+    "MainLoop",
 
     // names.c
     "Install",
