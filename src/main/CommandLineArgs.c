@@ -246,11 +246,13 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		else Rp->ppsize = (size_t) lval;
 	    }
 #ifdef HAVE_TIME_R
-	    else if(strncmp(*av, "--timeR-file", 12) == 0) {
-		if(strlen(*av) < 14) {
-		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
-		} else p = &(*av)[13];
+	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
+                    strncmp(*av, "--time", 6) == 0) {
+		p = strchr(*av, '=');
 		if (p == NULL) {
+		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
+		} else p++;
+		if (p == NULL || *p == 0) {
 		    snprintf(msg, 1024,
 		             _("WARNING: no value given for '%s'"), *av);
 		    R_ShowMessage(msg);
