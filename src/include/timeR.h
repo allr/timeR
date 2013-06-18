@@ -59,6 +59,7 @@ typedef enum {
     TR_allocS4,
     TR_GCInternal,
     TR_Protect,
+    TR_Unprotect,
     TR_UnprotectPtr,
 
     // arith.c

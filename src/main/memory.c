@@ -2131,6 +2131,7 @@ SEXP cons(SEXP car, SEXP cdr)
     BEGIN_TIMER(TR_cons);
     SEXP s;
     if (FORCE_GC || NO_FREE_NODES()) {
+	// note: rarely executed
 	PROTECT(car);
 	PROTECT(cdr);
 	R_gc_internal(0);
@@ -2856,10 +2857,12 @@ SEXP protect(SEXP s)
 
 void unprotect(int l)
 {
+    BEGIN_TIMER(TR_Unprotect);
     if (R_PPStackTop >=  l)
 	R_PPStackTop -= l;
     else
 	error(_("unprotect(): only %d protected items"), R_PPStackTop);
+    END_TIMER(TR_Unprotect);
 }
 
 

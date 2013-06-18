@@ -53,6 +53,7 @@ static char *bin_names[] = {
     "allocS4",
     "GCInternal",
     "Protect",
+    "Unprotect",
     "UnprotectPtr",
 
     // arith.c
