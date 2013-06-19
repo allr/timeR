@@ -117,8 +117,8 @@ typedef enum {
 /* timing bin: accumulates measured times */
 typedef struct {
     char              *name;          /* user-visible name in dump */
-    timeR_t            sum_exclusive; /* time accumulated in just this bin */
-    timeR_t            sum_complete;  /* time accumulated including "called" bins */
+    timeR_t            sum_self;      /* time accumulated in just this bin */
+    timeR_t            sum_total;     /* time accumulated including "called" bins */
     unsigned long long starts;        /* number of times this bin started accumulating */
     unsigned long long aborts;        /* number of times this bin implicitly ended */
     unsigned int       drop:1;        /* do not include this bin in caller bins */
@@ -214,15 +214,15 @@ static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, tim
 
     //assert(m->bin_id < next_bin);
     bin = &timeR_bins[m->bin_id];
-    bin->sum_complete += diff;
+    bin->sum_total += diff;
 
     /* calculate final amount of time spent in lower-level timers */
     tmp = timeR_current_lower_sum + *prev_diff;
     if (diff >= tmp) {
-        /* don't add negative values to exclusive time */
-        bin->sum_exclusive += diff - tmp;
+        /* don't add negative values to self time */
+        bin->sum_self += diff - tmp;
     } else {
-        fprintf(stderr, "*** WARNING: Negative exclusive time!\n");
+        fprintf(stderr, "*** WARNING: Negative self time!\n");
     }
     timeR_current_lower_sum = m->lower_sum;
 

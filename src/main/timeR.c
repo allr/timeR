@@ -135,8 +135,8 @@ static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
 
     fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
             timeR_bins[id].name,
-            timeR_bins[id].sum_exclusive,
-            timeR_bins[id].sum_complete,
+            timeR_bins[id].sum_self,
+            timeR_bins[id].sum_total,
             timeR_bins[id].starts,
             timeR_bins[id].aborts,
             timeR_bins[id].bcode);
@@ -171,7 +171,7 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
     fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
 
-    fprintf(fd, "# name\texclusive\tcomplete\tstarts\taborts\thas_bcode\n");
+    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
 	timeR_print_bin(fd, i);
