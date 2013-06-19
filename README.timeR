@@ -12,11 +12,15 @@ The output is a few informational lines in "keyword<whitespace>value"
 format followed by a single comment line starting with #, after
 which the timers are dumped in tab-delimited format. The colums
 are the timer name, the time accumulated on this timer (excluding
-child timers), the complete time accumulated on this timer
+child timers), the total time accumulated on this timer
 (including child timers), the number of times this timer was started,
 the number of times this timer was stopped implicitly and
 a 0/1 indicator that is 1 if at least one execution of the function
 used a byte-compiled version or 0 if it was always interpreted.
+
+To suppress timers in the output that were never triggered
+(number of starts 0), add --timeR-quiet to the command line
+options for R.
 
 Design goals:
 - mostly compatible with old timeR
