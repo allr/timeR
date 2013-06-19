@@ -246,6 +246,10 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		else Rp->ppsize = (size_t) lval;
 	    }
 #ifdef HAVE_TIME_R
+	    else if(strncmp(*av, "--timeR-quiet", 13) == 0) {
+		timeR_reduced_output = 1;
+	    }
+
 	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
                     strncmp(*av, "--time", 6) == 0) {
 		p = strchr(*av, '=');
@@ -261,10 +265,6 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		if(timeR_output_file != NULL)
 		    free(timeR_output_file);
 		timeR_output_file = strdup(p);
-	    }
-
-	    else if(strncmp(*av, "--timeR-quiet", 13) == 0) {
-		timeR_reduced_output = 1;
 	    }
 #endif
 	    else { /* unknown -option */
