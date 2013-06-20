@@ -20,7 +20,7 @@
 /* names of the static bins
  * must be in sync with tr_bin_id_t in timeR.h!
  */
-static char *bin_names[TR_StaticBinCount] = {
+static char *bin_names[] = {
     // internal
     "Startup",
     "TimingOverhead",
@@ -104,6 +104,14 @@ static char *bin_names[TR_StaticBinCount] = {
     // sys-unix.c
     "System",
 };
+
+typedef char static_assert___names_and_enums_do_not_match
+   [(sizeof(bin_names)/sizeof(bin_names[0]) == TR_StaticBinCount) ? 1 : -1];
+
+/* needs C-1x
+_Static_Assert(sizeof(bin_names)/sizeof(bin_names[0]) == TR_StaticBinCount,
+               "Number of tr_bin_id_t entries does not match bin_names array!");
+*/
 
 /* fallback name if string duplication fails */
 static char *userfunc_unknown_str = "unknown_user_function";
