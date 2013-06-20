@@ -317,8 +317,8 @@ int Rf_initialize_R(int ac, char **av)
 				 path, strerror(errno));
 			R_Suicide(msg);
 		    }
+                    Rp->InputFileName = strdup(path);
 		}
-		Rp->InputFileName = strdup(*av);
 	    } else if(!strncmp(*av, "--file=", 7)) {
 		Rp->R_Interactive = FALSE;
 		if(strcmp((*av)+7, "-")) {
@@ -338,8 +338,8 @@ int Rf_initialize_R(int ac, char **av)
 				 path, strerror(errno));
 			R_Suicide(msg);
 		    }
+                    Rp->InputFileName = strdup(path);
 		}
-		Rp->InputFileName = strdup(*av);
 	    } else if(!strcmp(*av, "-e")) {
 		ac--; av++;
 		Rp->R_Interactive = FALSE;
