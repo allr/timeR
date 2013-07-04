@@ -44,7 +44,6 @@
 static char *bin_names[] = {
     // internal
     "Startup",
-    "TimingOverhead",
     "UserFuncFallback",
 
     // memory.c
@@ -301,7 +300,6 @@ void timeR_measureblock_full(void) {
     tr_measureptr_t mptr;
 
     /* current block is now full, switch to the next one */
-    // FIXME: Slow path, add overhead timer here
     timeR_current_mblockidx++;
 
     /* check for overflow */
@@ -329,7 +327,6 @@ void timeR_measureblock_full(void) {
 
 void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when) {
     tr_timer_t *m;
-    // FIXME: Add overhead timer
 
     /* loop until the passed timer has been processed */
     do {

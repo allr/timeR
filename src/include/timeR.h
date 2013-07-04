@@ -50,7 +50,6 @@
 typedef enum {
     // internal
     TR_Startup,
-    TR_Overhead,
     TR_UserFuncFallback,
 
     // memory.c
