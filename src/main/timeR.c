@@ -327,14 +327,13 @@ void timeR_measureblock_full(void) {
     timeR_next_mindex    = 0;
 }
 
-void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
-                               timeR_t prev_diff) {
+void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when) {
     tr_timer_t *m;
     // FIXME: Add overhead timer
 
     /* loop until the passed timer has been processed */
     do {
-        timeR_end_latest_timer(when, &prev_diff);
+	timeR_end_latest_timer(when);
 
 	/* update abort counter if this isn't the top timer */
 	if (timeR_current_mblock != mptr->curblock ||
@@ -343,9 +342,6 @@ void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
 
     } while (timeR_current_mblock != mptr->curblock ||
              timeR_next_mindex    != mptr->index);
-
-    /* add last difference in the top-level active timer */
-    timeR_current_lower_sum += prev_diff;
 }
 
 unsigned int timeR_add_userfn_bin(void) {

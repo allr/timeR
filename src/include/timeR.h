@@ -172,8 +172,7 @@ extern timeR_t      timeR_current_lower_sum;
 
 /* slow path functions for the fast path inlines */
 void timeR_measureblock_full(void);
-void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
-                               timeR_t prev_diff);
+void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when);
 
 /* fast path implementation */
 static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
@@ -204,7 +203,7 @@ static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
 
 /* end the top-of-stack timer, extracted for reuse in end_timers_slowpath */
 // FIXME: Seems a bit long for a fast-path function...
-static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, timeR_t *prev_diff) {
+static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime) {
     tr_timer_t *m;
     tr_bin_t   *bin;
     timeR_t     diff, tmp;
@@ -227,35 +226,27 @@ static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, tim
     bin->sum_total += diff;
 
     /* calculate final amount of time spent in lower-level timers */
-    tmp = timeR_current_lower_sum + *prev_diff;
-    if (diff >= tmp) {
+    if (diff >= timeR_current_lower_sum) {
         /* don't add negative values to self time */
-        bin->sum_self += diff - tmp;
+        bin->sum_self += diff - timeR_current_lower_sum;
     } else {
         fprintf(stderr, "*** WARNING: Negative self time!\n");
     }
-    timeR_current_lower_sum = m->lower_sum;
-
-    *prev_diff = diff;
+    timeR_current_lower_sum = m->lower_sum + diff;
 }
 
 static inline void timeR_end_timer(const tr_measureptr_t *mptr) {
-    timeR_t prev_diff = 0;
-
     /* capture current time in case multiple timers are ending */
     timeR_t endtime = tr_now();
 
     /* end the newest timer on the measurement stack */
-    timeR_end_latest_timer(endtime, &prev_diff);
+    timeR_end_latest_timer(endtime);
 
     /* run slowpath if this wasn't enough */
     if (timeR_current_mblock != mptr->curblock ||
         timeR_next_mindex    != mptr->index) {
         timeR_bins[timeR_current_mblock[timeR_next_mindex].bin_id].aborts++;
-        timeR_end_timers_slowpath(mptr, endtime, prev_diff);
-    } else {
-	/* add elapsed time to the top-level active timer */
-	timeR_current_lower_sum += prev_diff;
+        timeR_end_timers_slowpath(mptr, endtime);
     }
 }
 
