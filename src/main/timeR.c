@@ -243,12 +243,6 @@ void timeR_init_early(void) {
 	timeR_bins[i].name = bin_names[i];
     }
 
-    // FIXME: Add a generic init of drop?
-    timeR_bins[TR_inSockRead].drop    = 1;
-    timeR_bins[TR_inSockWrite].drop   = 1;
-    timeR_bins[TR_inSockOpen].drop    = 1;
-    timeR_bins[TR_inSockConnect].drop = 1;
-
     /* add bins for the .Internal/.Primitive functions */
     char fnname[1024];
 
@@ -334,13 +328,13 @@ void timeR_measureblock_full(void) {
 }
 
 void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
-                               timeR_t prev_diff, timeR_t prev_drop) {
+                               timeR_t prev_diff) {
     tr_timer_t *m;
     // FIXME: Add overhead timer
 
     /* loop until the passed timer has been processed */
     do {
-        timeR_end_latest_timer(when, &prev_diff, &prev_drop);
+        timeR_end_latest_timer(when, &prev_diff);
 
 	/* update abort counter if this isn't the top timer */
 	if (timeR_current_mblock != mptr->curblock ||

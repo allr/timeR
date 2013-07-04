@@ -142,7 +142,6 @@ typedef struct {
     timeR_t            sum_total;     /* time accumulated including "called" bins */
     unsigned long long starts;        /* number of times this bin started accumulating */
     unsigned long long aborts;        /* number of times this bin implicitly ended */
-    unsigned int       drop:1;        /* do not include this bin in caller bins */
     unsigned int       bcode:1;       /* a user function was evaluated in byte-compiled form */
 } tr_bin_t;
 
@@ -150,7 +149,6 @@ typedef struct {
 typedef struct {
     timeR_t      start;        /* start time of this timer */
     timeR_t      lower_sum;    /* time accumulated in "called" timers */
-    timeR_t      dropped_time; /* time accumulated in lower bins marked as "drop" (e.g. overhead) */
     unsigned int bin_id;       /* ID of the bin that receives the timer */
 } tr_timer_t;
 
@@ -175,7 +173,7 @@ extern timeR_t      timeR_current_lower_sum;
 /* slow path functions for the fast path inlines */
 void timeR_measureblock_full(void);
 void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when,
-                               timeR_t prev_diff, timeR_t prev_drop);
+                               timeR_t prev_diff);
 
 /* fast path implementation */
 static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
@@ -191,7 +189,6 @@ static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
     mptr.index    = timeR_next_mindex;
 
     timeR_current_mblock[timeR_next_mindex].lower_sum    = timeR_current_lower_sum;
-    timeR_current_mblock[timeR_next_mindex].dropped_time = 0;
     timeR_current_lower_sum                              = 0;
 
     /* check if the measurement block is full */
@@ -207,7 +204,7 @@ static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
 
 /* end the top-of-stack timer, extracted for reuse in end_timers_slowpath */
 // FIXME: Seems a bit long for a fast-path function...
-static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, timeR_t *prev_diff, timeR_t *prev_drop) {
+static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, timeR_t *prev_diff) {
     tr_timer_t *m;
     tr_bin_t   *bin;
     timeR_t     diff, tmp;
@@ -225,14 +222,6 @@ static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, tim
     m    = &timeR_current_mblock[timeR_next_mindex];
     diff = endtime - m->start;
 
-    /* reduce difference if a previous bin was marked as drop */
-    if (diff >= *prev_drop) {
-        diff -= *prev_drop;
-    } else {
-        fprintf(stderr, "*** WARNING: Negative difference remains after drop!\n");
-        diff = 0;
-    }
-
     //assert(m->bin_id < next_bin);
     bin = &timeR_bins[m->bin_id];
     bin->sum_total += diff;
@@ -247,32 +236,23 @@ static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime, tim
     }
     timeR_current_lower_sum = m->lower_sum;
 
-    /* add dropped time */
-    m->dropped_time += *prev_drop;
-
-    if (bin->drop) {
-        *prev_drop += diff;
-        *prev_diff = 0;
-    } else {
-        *prev_diff = diff;
-    }
+    *prev_diff = diff;
 }
 
 static inline void timeR_end_timer(const tr_measureptr_t *mptr) {
     timeR_t prev_diff = 0;
-    timeR_t prev_drop = 0;
 
     /* capture current time in case multiple timers are ending */
     timeR_t endtime = tr_now();
 
     /* end the newest timer on the measurement stack */
-    timeR_end_latest_timer(endtime, &prev_diff, &prev_drop);
+    timeR_end_latest_timer(endtime, &prev_diff);
 
     /* run slowpath if this wasn't enough */
     if (timeR_current_mblock != mptr->curblock ||
         timeR_next_mindex    != mptr->index) {
         timeR_bins[timeR_current_mblock[timeR_next_mindex].bin_id].aborts++;
-        timeR_end_timers_slowpath(mptr, endtime, prev_diff, prev_drop);
+        timeR_end_timers_slowpath(mptr, endtime, prev_diff);
     } else {
 	/* add elapsed time to the top-level active timer */
 	timeR_current_lower_sum += prev_diff;
