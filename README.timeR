@@ -42,7 +42,8 @@ Currently unreached design goals:
 - "make check" fails due to additional field in srcrefs
   -> programs can detect if profiled or not
   -> alternative implementation using a lang5 instead of lang4
-     in xxdefun failed too
+     in xxdefun had a similar problem
+  -> ignored for now, mostly an aesthetics issue
 
 Partially reached design goals:
 - adding new timers not simple enough,
@@ -56,19 +57,14 @@ Partially reached design goals:
   (partial function execution and error path are added
    to the functions's timer now, was the caller's timer before)
 
-Still incomplete:
+Would be useful, but can live without:
 - comments explaining mptr->measurement->bin hierarchy
-- not fully compatible with old timeR
-- overhead measurements
 
-Open issues:
-- name "dropped time" should be changed
-  ("overhead" does not encompass all uses of the concept:
-   inSock* also utilize the flag)
+Wishlist items:
 - bin IDs stay attached at serialisation (not critical, just inelegant)
 - wrapping of every SETJMP is extremely ugly, can't handle by wrapping
   in a function though (would return to invalid stack frame)
-- duplicate entries in user function timers
+- remove duplicate entries for user function timers
   - workaround: merge-timeR.pl script in root directory sums duplicates
 
 Possible future extensions:
