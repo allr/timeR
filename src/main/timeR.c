@@ -59,6 +59,9 @@ static char *bin_names[] = {
     // arith.c
     "doArith",
 
+    // array.c,
+    "doMatprod",
+
     // connections.c
     "gzFile",
     "bzFile",
@@ -100,6 +103,7 @@ static char *bin_names[] = {
 
     // logic.c
     "doLogic",
+    "doLogic2",
 
     // main.c
     "Repl",
@@ -109,9 +113,13 @@ static char *bin_names[] = {
     "Install",
     "dotSpecial2",
 
+    // relop.c
+    "doRelop",
+
     // subset.c
     "doSubset",
     "doSubset2",
+    "doSubset3",
 
     // Rsock.c
     "inSockRead",

@@ -29,6 +29,8 @@
 #include <R_ext/RS.h>     /* for Calloc/Free */
 #include <R_ext/Applic.h> /* for dgemm */
 
+#include "timeR.h"
+
 /* "GetRowNames" and "GetColNames" are utility routines which
  * locate and return the row names and column names from the
  * dimnames attribute of a matrix.  They are useful because
@@ -632,6 +634,8 @@ static void tccrossprod(Rcomplex *x, int nrx, int ncx,
 /* "%*%" (op = 0), crossprod (op = 1) or tcrossprod (op = 2) */
 SEXP attribute_hidden do_matprod(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
+    BEGIN_TIMER(TR_doMatprod);
+
     int ldx, ldy, nrx, ncx, nry, ncy, mode;
     SEXP x = CAR(args), y = CADR(args), xdims, ydims, ans;
     Rboolean sym;
@@ -643,7 +647,10 @@ SEXP attribute_hidden do_matprod(SEXP call, SEXP op, SEXP args, SEXP rho)
 	/* Remove argument names to ensure positional matching */
 	for(s = args; s != R_NilValue; s = CDR(s)) SET_TAG(s, R_NilValue);
 	value = R_possible_dispatch(call, op, args, rho, FALSE);
-	if (value) return value;
+	if (value) {
+	    END_TIMER(TR_doMatprod);
+	    return value;
+	}
     }
 
     sym = isNull(y);
@@ -921,6 +928,7 @@ SEXP attribute_hidden do_matprod(SEXP call, SEXP op, SEXP args, SEXP rho)
 	}
     }
     UNPROTECT(3);
+    END_TIMER(TR_doMatprod);
     return ans;
 }
 #undef YDIMS_ET_CETERA

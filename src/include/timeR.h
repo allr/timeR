@@ -65,6 +65,9 @@ typedef enum {
     // arith.c
     TR_doArith,
 
+    // array.c
+    TR_doMatprod,
+
     // connections.c
     TR_gzFile,
     TR_bzFile,
@@ -106,6 +109,7 @@ typedef enum {
 
     // logic.c
     TR_doLogic,
+    TR_doLogic2,
 
     // main.c
     TR_Repl,
@@ -115,9 +119,13 @@ typedef enum {
     TR_Install,
     TR_dotSpecial2,
 
+    // relop.c
+    TR_doRelop,
+
     // subset.c
     TR_doSubset,
     TR_doSubset2,
+    TR_doSubset3,
 
     // Rsock.c
     TR_inSockRead,

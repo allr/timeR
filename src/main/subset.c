@@ -1135,6 +1135,8 @@ SEXP attribute_hidden do_subset3(SEXP call, SEXP op, SEXP args, SEXP env)
 /* used in eval.c */
 SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 {
+    BEGIN_TIMER(TR_doSubset3);
+
     SEXP y, nlist;
     size_t slen;
 
@@ -1162,6 +1164,7 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 	    case EXACT_MATCH:
 		y = CAR(y);
 		if (NAMED(x) > NAMED(y)) SET_NAMED(y, NAMED(x));
+		END_TIMER(TR_doSubset3);
 		return y;
 	    case PARTIAL_MATCH:
 		havematch++;
@@ -1188,8 +1191,10 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 	    }
 	    y = CAR(xmatch);
 	    if (NAMED(x) > NAMED(y)) SET_NAMED(y, NAMED(x));
+	    END_TIMER(TR_doSubset3);
 	    return y;
 	}
+	END_TIMER(TR_doSubset3);
 	return R_NilValue;
     }
     else if (isVectorList(x)) {
@@ -1205,6 +1210,7 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 		y = VECTOR_ELT(x, i);
 		if (NAMED(x) > NAMED(y))
 		    SET_NAMED(y, NAMED(x));
+		END_TIMER(TR_doSubset3);
 		return y;
 	    case PARTIAL_MATCH:
 		havematch++;
@@ -1239,8 +1245,10 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 	    }
 	    y = VECTOR_ELT(x, imatch);
 	    if (NAMED(x) > NAMED(y)) SET_NAMED(y, NAMED(x));
+	    END_TIMER(TR_doSubset3);
 	    return y;
 	}
+	END_TIMER(TR_doSubset3);
 	return R_NilValue;
     }
     else if( isEnvironment(x) ){
@@ -1256,8 +1264,10 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
 		SET_NAMED(y, 2);
 	    else if (NAMED(x) > NAMED(y))
 		SET_NAMED(y, NAMED(x));
+	    END_TIMER(TR_doSubset3);
 	    return(y);
 	}
+	END_TIMER(TR_doSubset3);
 	return R_NilValue;
     }
     else if( isVectorAtomic(x) ){
@@ -1266,5 +1276,6 @@ SEXP attribute_hidden R_subset3_dflt(SEXP x, SEXP input, SEXP call)
     else /* e.g. a function */
 	errorcall(call, R_MSG_ob_nonsub, type2char(TYPEOF(x)));
     UNPROTECT(2);
+    END_TIMER(TR_doSubset3);
     return R_NilValue;
 }

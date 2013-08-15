@@ -232,6 +232,8 @@ static SEXP lunary(SEXP call, SEXP op, SEXP arg)
 SEXP attribute_hidden do_logic2(SEXP call, SEXP op, SEXP args, SEXP env)
 {
 /*  &&	and  ||	 */
+    BEGIN_TIMER(TR_doLogic2);
+
     SEXP s1, s2;
     int x1, x2;
     SEXP ans;
@@ -280,6 +282,7 @@ SEXP attribute_hidden do_logic2(SEXP call, SEXP op, SEXP args, SEXP env)
 	}
     }
     UNPROTECT(1);
+    END_TIMER(TR_doLogic2);
     return ans;
 }
 
