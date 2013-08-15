@@ -152,6 +152,7 @@ tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
 /* additional hardcoded timers */
 static tr_measureptr_t startup_mptr;
+static timeR_t         start_time;
 
 char *timeR_output_file;
 int   timeR_reduced_output;
@@ -295,6 +296,7 @@ void timeR_init_early(void) {
 
     /* measure the startup time of R */
     startup_mptr = timeR_begin_timer(TR_Startup);
+    start_time   = tr_now();
 }
 
 void timeR_startup_done(void) {
@@ -312,6 +314,8 @@ void timeR_finish(void) {
 	timeR_end_timer(&fini);
     }
 
+    timeR_t end_time = tr_now();
+
     /* dump data to file */
     FILE *fd;
 
@@ -323,6 +327,9 @@ void timeR_finish(void) {
 	return;
 
     timeR_dump(fd);
+
+    // FIXME: Move to timeR_dump?
+    fprintf(fd, "TotalRuntime %ld\n", end_time - start_time);
 
     // FIXME: Check for errors
     fclose(fd);
