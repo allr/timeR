@@ -205,6 +205,35 @@ static void timeR_dump(FILE *fd) {
     for (unsigned int i = 0; i < next_bin; i++) {
 	timeR_print_bin(fd, i);
     }
+
+    timeR_t bself_sum, btotal_sum, sself_sum, stotal_sum;
+    unsigned long long bstart_sum, babort_sum, sstart_sum, sabort_sum;
+
+    int i = 0;
+    while (R_FunTab[i].name != NULL) {
+	unsigned int bin_id = TR_StaticBinCount + i;
+
+	if ((R_FunTab[i].eval % 10) == 0) {
+	    /* SPECIALSXP */
+	    sself_sum  += timeR_bins[bin_id].sum_self;
+	    stotal_sum += timeR_bins[bin_id].sum_total;
+	    sstart_sum += timeR_bins[bin_id].starts;
+	    sabort_sum += timeR_bins[bin_id].aborts;
+	} else {
+	    /* BUILTINSXP */
+	    bself_sum  += timeR_bins[bin_id].sum_self;
+	    btotal_sum += timeR_bins[bin_id].sum_total;
+	    bstart_sum += timeR_bins[bin_id].starts;
+	    babort_sum += timeR_bins[bin_id].aborts;
+	}
+
+	i++;
+    }
+
+    fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
+	    bself_sum, btotal_sum, bstart_sum, babort_sum);
+    fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
+	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
 }
 
 
@@ -248,6 +277,8 @@ void timeR_init_early(void) {
 
     i = 0;
     while (R_FunTab[i].name != NULL) {
+	// FIXME: BEGIN_INTERNAL_TIMER and the dump code assume this
+	//        block of fns starts at TR_StaticBinCount
 	unsigned int bin_id = timeR_add_userfn_bin();
 
 	if ((R_FunTab[i].eval / 10) % 10 == 1) {
