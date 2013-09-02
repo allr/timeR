@@ -285,7 +285,22 @@ static const char *timeR_get_bin_name(unsigned int bin_id) {
 }
 
 extern char *timeR_output_file;
+extern FILE *timeR_externals_fd;
 extern int   timeR_reduced_output;
+
+// FIXME: Use the real types instead
+void timeR_report_external_int(int /*NativeSymbolType*/ type,
+                               char *buf,
+                               char *name,
+                               void /*DL_FUNC*/ *fun);
+
+static inline void timeR_report_external(int /*NativeSymbolType*/ type,
+                                         char *buf,
+                                         char *name,
+                                         void /*DL_FUNC*/ *fun) {
+  if (timeR_externals_fd != NULL)
+    timeR_report_external_int(type, buf, name, fun);
+}
 
 /* convenience macros */
 #  define BEGIN_TIMER(bin) \
@@ -331,6 +346,11 @@ static inline void timeR_name_bin_anonfunc(unsigned int bin_id,
 static const char * timeR_get_bin_name(unsigned int bin_id) {
   return "";
 }
+
+static inline void timeR_report_external(int /*NativeSymbolType*/ type,
+                                         char *buf,
+                                         char *name,
+                                         void /*DL_FUNC*/ *fun) {}
 
   // avoids an #ifdef in eval.c
 #  define TR_UserFuncFallback 0

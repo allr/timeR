@@ -163,6 +163,7 @@ static tr_measureptr_t startup_mptr;
 static timeR_t         start_time;
 
 char *timeR_output_file;
+FILE *timeR_externals_fd;
 int   timeR_reduced_output;
 
 /*** internal functions ***/
@@ -341,6 +342,9 @@ void timeR_finish(void) {
 
     // FIXME: Check for errors
     fclose(fd);
+
+    if (timeR_externals_fd != NULL)
+      fclose(timeR_externals_fd);
 }
 
 void timeR_measureblock_full(void) {
@@ -445,4 +449,21 @@ void timeR_release(tr_measureptr_t *marker) {
 
     /* marker points to an allocated measurement, end it */
     timeR_end_timer(marker);
+}
+
+/* quick-hack-port of the --externalcalls functionality from old timeR */
+void timeR_report_external_int(int /*NativeSymbolType*/ type,
+			       char *buf,
+			       char *name,
+			       void /*DL_FUNC*/ *fun) {
+    if (name != NULL && strlen(name) == 0)
+	name = "(unknown)";
+
+    if (buf[0] == 0) {
+	fprintf(timeR_externals_fd, "%d %p %s %p\n",
+		type, fun, name ? name : "?NULL?" , fun);
+    } else {
+	fprintf(timeR_externals_fd, "%d %s %s %p\n",
+		type, buf, name ? name : "?NULL?" , fun);
+    }
 }

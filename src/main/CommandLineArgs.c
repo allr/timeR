@@ -107,6 +107,21 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		argv[newac++] = *av;
 		processing = FALSE;
 	    }
+	    else if(!strncmp(*av, "--externalcalls", 15)) {
+		p = strchr(*av, '=');
+		if (p == NULL) {
+		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
+		} else p++;
+		if (p == NULL || *p == 0) {
+		    snprintf(msg, 1024,
+		             _("WARNING: no value given for '%s'"), *av);
+		    R_ShowMessage(msg);
+		    break;
+		}
+		if (timeR_externals_fd != NULL)
+		    fclose(timeR_externals_fd);
+		timeR_externals_fd = fopen(p, "w");
+	    }
 	    else if(!strcmp(*av, "--save")) {
 		Rp->SaveAction = SA_SAVE;
 	    }
