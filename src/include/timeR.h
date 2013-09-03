@@ -77,6 +77,7 @@ typedef enum {
     TR_onExits,
 
     // dotcode.c
+    TR_dotExternalFull,
     TR_dotExternal,
     TR_dotCallFull,
     TR_dotCall,

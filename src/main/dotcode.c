@@ -512,7 +512,7 @@ typedef SEXP (*R_ExternalRoutine2)(SEXP, SEXP, SEXP, SEXP);
 
 SEXP attribute_hidden do_External(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_dotExternal);
+    BEGIN_TIMER(TR_dotExternalFull);
     DL_FUNC ofun = NULL;
     SEXP retval;
     R_RegisteredNativeSymbol symbol = {R_EXTERNAL_SYM, {NULL}, NULL};
@@ -534,13 +534,17 @@ SEXP attribute_hidden do_External(SEXP call, SEXP op, SEXP args, SEXP env)
 
     if (PRIMVAL(op) == 1) {
 	R_ExternalRoutine2 fun = (R_ExternalRoutine2) ofun;
+	BEGIN_TIMER(TR_dotExternal);
 	retval = fun(call, op, args, env);
+	END_TIMER(TR_dotExternal);
     } else {
 	R_ExternalRoutine fun = (R_ExternalRoutine) ofun;
+	BEGIN_TIMER(TR_dotExternal);
 	retval = fun(args);
+	END_TIMER(TR_dotExternal);
     }
     vmaxset(vmax);
-    END_TIMER(TR_dotExternal);
+    END_TIMER(TR_dotExternalFull);
     return retval;
 }
 

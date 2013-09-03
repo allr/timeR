@@ -71,6 +71,7 @@ static char *bin_names[] = {
     "onExits",
 
     // dotcode.c
+    "dotExternalFull",
     "dotExternal",
     "dotCallFull",
     "dotCall",
