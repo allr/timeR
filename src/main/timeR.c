@@ -339,7 +339,7 @@ void timeR_finish(void) {
     timeR_dump(fd);
 
     // FIXME: Move to timeR_dump?
-    fprintf(fd, "TotalRuntime %ld\n", end_time - start_time);
+    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
 
     // FIXME: Check for errors
     fclose(fd);
