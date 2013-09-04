@@ -108,7 +108,8 @@ static char *bin_names[] = {
 
     // main.c
     "Repl",
-    "MainLoop",
+    "SetupMainLoop",
+    "endMainloop",
 
     // names.c
     "Install",
@@ -466,5 +467,29 @@ void timeR_report_external_int(int /*NativeSymbolType*/ type,
     } else {
 	fprintf(timeR_externals_fd, "%d %s %s %p\n",
 		type, buf, name ? name : "?NULL?" , fun);
+    }
+}
+
+/* debug aid: dump the current timer stack to stderr */
+void timeR_dump_timer_stack(void) {
+    tr_timer_t  *cur_mblock = timeR_measureblocks[0];
+    unsigned int mbidx      = 0;
+    unsigned int idx        = 1;
+    unsigned int i          = 0;
+
+    fprintf(stderr,"--- current timer stack:\n");
+
+    while (mbidx != timeR_current_mblockidx ||
+	   idx   != timeR_next_mindex) {
+	fprintf(stderr, "%3d: %3d (%s)\n", i,
+		cur_mblock[idx].bin_id,
+		timeR_bins[cur_mblock[idx].bin_id].name);
+	i++;
+	idx++;
+	if (idx >= TIME_R_MBLOCK_SIZE) {
+	    idx = 0;
+	    mbidx++;
+	    cur_mblock = timeR_measureblocks[mbidx];
+	}
     }
 }

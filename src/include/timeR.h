@@ -114,7 +114,8 @@ typedef enum {
 
     // main.c
     TR_Repl,
-    TR_Mainloop,
+    TR_SetupMainloop,
+    TR_endMainloop,
 
     // names.c
     TR_Install,
@@ -182,6 +183,9 @@ extern timeR_t      timeR_current_lower_sum;
 /* slow path functions for the fast path inlines */
 void timeR_measureblock_full(void);
 void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when);
+
+/* debug aid */
+void timeR_dump_timer_stack(void);
 
 /* fast path implementation */
 static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
