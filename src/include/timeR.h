@@ -320,12 +320,12 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 #  define RELEASE_TIMER() \
     timeR_release(&rtm_mptr_marker)
 
-/* abstraction to keep the offset out of the main R code */
-#  define BEGIN_INTERNAL_TIMER(id) \
-    tr_measureptr_t rtm_mptr_internal = timeR_begin_timer((id) + TR_StaticBinCount)
+/* timers for functions called via R_FunTab */
+#  define BEGIN_PRIMFUN_TIMER(id) \
+    tr_measureptr_t rtm_mptr_primfun = timeR_begin_timer((id) + TR_StaticBinCount)
 
-#  define END_INTERNAL_TIMER(id) \
-    timeR_end_timer(&rtm_mptr_internal)
+#  define END_PRIMFUN_TIMER(id) \
+    timeR_end_timer(&rtm_mptr_primfun)
 
 #else
 
@@ -361,10 +361,10 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 #  define TR_UserFuncFallback 0
 
   // defined as macros to ensure the parameter is not parsed
-#  define BEGIN_TIMER(unused)      do {} while (0)
-#  define END_TIMER(unused)        do {} while (0)
-#  define BEGIN_INTERNAL_TIMER(id) do {} while (0)
-#  define END_INTERNAL_TIMER(id)   do {} while (0)
+#  define BEGIN_TIMER(unused)     do {} while (0)
+#  define END_TIMER(unused)       do {} while (0)
+#  define BEGIN_PRIMFUN_TIMER(id) do {} while (0)
+#  define END_PRIMFUN_TIMER(id)   do {} while (0)
 
 #endif // HAVE_TIME_R
 

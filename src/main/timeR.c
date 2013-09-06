@@ -289,7 +289,7 @@ void timeR_init_early(void) {
 
     i = 0;
     while (R_FunTab[i].name != NULL) {
-	// FIXME: BEGIN_INTERNAL_TIMER and the dump code assume this
+	// FIXME: BEGIN_PRIMFUN_TIMER and the dump code assume this
 	//        block of fns starts at TR_StaticBinCount
 	unsigned int bin_id = timeR_add_userfn_bin();
 
