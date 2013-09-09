@@ -218,8 +218,8 @@ static void timeR_dump(FILE *fd) {
 	timeR_print_bin(fd, i);
     }
 
-    timeR_t bself_sum, btotal_sum, sself_sum, stotal_sum;
-    unsigned long long bstart_sum, babort_sum, sstart_sum, sabort_sum;
+    timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
+    unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
 
     int i = 0;
     while (R_FunTab[i].name != NULL) {
