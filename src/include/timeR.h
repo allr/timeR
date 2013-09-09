@@ -327,6 +327,13 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 #  define END_PRIMFUN_TIMER(id) \
     timeR_end_timer(&rtm_mptr_primfun)
 
+/* timers for functions written in R */
+#  define BEGIN_RFUNC_TIMER(id) \
+    tr_measureptr_t rtm_mptr_rfunction = timeR_begin_timer(id)
+
+#  define END_RFUNC_TIMER(id) \
+    timeR_end_timer(&rtm_mptr_rfunction)
+
 #else
 
   // timeR not enabled in configure
@@ -365,6 +372,8 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 #  define END_TIMER(unused)       do {} while (0)
 #  define BEGIN_PRIMFUN_TIMER(id) do {} while (0)
 #  define END_PRIMFUN_TIMER(id)   do {} while (0)
+#  define BEGIN_RFUNC_TIMER(id)   do {} while (0)
+#  define END_RFUNC_TIMER(id)     do {} while (0)
 
 #endif // HAVE_TIME_R
 

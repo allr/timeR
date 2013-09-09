@@ -957,7 +957,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
 	    timeR_mark_bcode(timeR_bin_id);
     }
 
-    BEGIN_TIMER(timeR_bin_id);
+    BEGIN_RFUNC_TIMER(timeR_bin_id);
 
     /* The default return value is NULL.  FIXME: Is this really needed
        or do we always get a sensible value returned?  */
@@ -1037,7 +1037,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
 
     endcontext(&cntxt);
 
-    END_TIMER(timeR_bin_id);
+    END_RFUNC_TIMER(timeR_bin_id);
 
     if (RDEBUG(op)) {
 	Rprintf("exiting from: ");
