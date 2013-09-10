@@ -1401,9 +1401,18 @@ R_FindNativeSymbolFromDLL(char *name, DllReference *dll,
 
 SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_dotCodeFull);
+    int Fort = PRIMVAL(op);
+
+#ifdef TIME_R_CSTUFF
+    tr_measureptr_t rtm_mptr_dotcodefull;
+    if (Fort)
+	rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotFortranFull);
+    else
+	rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotCFull);
+#endif
+
     void **cargs, **cargs0 = NULL /* -Wall */;
-    int dup, naok, na, nargs, Fort;
+    int dup, naok, na, nargs;
     Rboolean havenames, copy = R_CBoundsCheck; /* options(CboundsCheck) */
     DL_FUNC ofun = NULL;
     VarFun fun = NULL;
@@ -1424,7 +1433,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     if (EncSymbol == NULL) EncSymbol = install("ENCODING");
     if (CSingSymbol == NULL) CSingSymbol = install("Csingle");
     vmax = vmaxget();
-    Fort = PRIMVAL(op);
+    // Fort = PRIMVAL(op);
     if(Fort) symbol.type = R_FORTRAN_SYM;
 
     args = enctrim(args);
@@ -1701,7 +1710,14 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 	if (nprotect) UNPROTECT(nprotect);
     }
 
-    BEGIN_TIMER(TR_dotCode);
+#ifdef TIME_R_CSTUFF
+    tr_measureptr_t rtm_mptr_dotcode;
+    if (Fort)
+	rtm_mptr_dotcode = timeR_begin_timer(TR_dotFortran);
+    else
+	rtm_mptr_dotcode = timeR_begin_timer(TR_dotC);
+#endif
+
     switch (nargs) {
     case 0:
 	/* Silicon graphics C chokes here */
@@ -2296,7 +2312,10 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     default:
 	errorcall(call, _("too many arguments, sorry"));
     }
-    END_TIMER(TR_dotCode);
+
+#ifdef TIME_R_CSTUFF
+    timeR_end_timer(&rtm_mptr_dotcode);
+#endif
 
     if (dup) {
 
@@ -2491,7 +2510,11 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     }
     UNPROTECT(1);
     vmaxset(vmax);
-    END_TIMER(TR_dotCodeFull);
+
+#ifdef TIME_R_CSTUFF
+    timeR_end_timer(&rtm_mptr_dotcodefull);
+#endif
+
     return ans;
 }
 

@@ -40,6 +40,10 @@
 # endif
 
 #define TIME_R_ENABLED 1
+// Placeholder macros, do not undef (FIXME!)
+#define TIME_R_RFUNCS
+#define TIME_R_FUNTAB
+#define TIME_R_CSTUFF
 
 #if defined(__GNUC__) || defined(__clang__)
   #define TMR_ALWAYS_INLINE __attribute__((always_inline))
@@ -81,8 +85,10 @@ typedef enum {
     TR_dotExternal,
     TR_dotCallFull,
     TR_dotCall,
-    TR_dotCodeFull,
-    TR_dotCode,
+    TR_dotCFull,
+    TR_dotC,
+    TR_dotFortranFull,
+    TR_dotFortran,
 
     // dounzip.c
     TR_doUnzip,

@@ -75,8 +75,10 @@ static char *bin_names[] = {
     "dotExternal",
     "dotCallFull",
     "dotCall",
-    "dotCodeFull",
-    "dotCode",
+    "dotCFull",
+    "dotC",
+    "dotFortranFull",
+    "dotFortran",
 
     // dounzip.c
     "doUnzip",
