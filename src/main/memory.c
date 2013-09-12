@@ -2254,9 +2254,11 @@ SEXP attribute_hidden mkPROMISE(SEXP expr, SEXP rho)
 
 SEXP allocVector(SEXPTYPE type, R_xlen_t length)
 {
+    BEGIN_TIMER(TR_allocVector);
     SEXP s;     /* For the generational collector it would be safer to
 		   work in terms of a VECSEXP here, but that would
 		   require several casts below... */
+    SEXP ans;
     R_len_t i;
     R_size_t size = 0, alloc_size, old_R_VSize;
     int node_class;
@@ -2301,6 +2303,7 @@ SEXP allocVector(SEXPTYPE type, R_xlen_t length)
 	    SET_SHORT_VEC_LENGTH(s, (R_len_t) length); // is 1
 	    SET_SHORT_VEC_TRUELENGTH(s, 0);
 	    NAMED(s) = 0;
+	    END_TIMER(TR_allocVector);
 	    return(s);
 	}
     }
@@ -2314,6 +2317,7 @@ SEXP allocVector(SEXPTYPE type, R_xlen_t length)
     /* number of vector cells to allocate */
     switch (type) {
     case NILSXP:
+	END_TIMER(TR_allocVector);
 	return R_NilValue;
     case RAWSXP:
 	size = BYTE2VEC(length);
@@ -2385,24 +2389,29 @@ SEXP allocVector(SEXPTYPE type, R_xlen_t length)
 	}
 	break;
     case LANGSXP:
-	if(length == 0) return R_NilValue;
+	if(length == 0) {
+	    END_TIMER(TR_allocVector);
+	    return R_NilValue;
+	}
 #ifdef LONG_VECTOR_SUPPORT
 	if (length > R_SHORT_LEN_MAX) error("invalid length for pairlist");
 #endif
 	s = allocList((int) length);
 	TYPEOF(s) = LANGSXP;
+	END_TIMER(TR_allocVector);
 	return s;
     case LISTSXP:
 #ifdef LONG_VECTOR_SUPPORT
 	if (length > R_SHORT_LEN_MAX) error("invalid length for pairlist");
 #endif
-	return allocList((int) length);
+	ans = allocList((int) length);
+	END_TIMER(TR_allocVector);
+	return ans;
     default:
 	error(_("invalid type/length (%s/%d) in vector allocation"),
 	      type2char(type), length);
     }
 
-    BEGIN_TIMER(TR_allocVector); // FIXME: r-timed compatible position, seems weird though
     if (size <= NodeClassSize[1]) {
 	node_class = 1;
 	alloc_size = NodeClassSize[1];
