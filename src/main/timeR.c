@@ -45,6 +45,8 @@ static char *bin_names[] = {
     // internal
     "Startup",
     "UserFuncFallback",
+    "OverheadTest1",
+    "OverheadTest2",
 
     // memory.c
     "cons",
@@ -214,9 +216,17 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
     fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
 
+    fprintf(fd, "OverheadEstimate: %.3f - %.3f\n",
+	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
+	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
+
     fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
+	if (i == TR_OverheadTest1 ||
+	    i == TR_OverheadTest2)
+	    continue;
+
 	timeR_print_bin(fd, i);
     }
 
@@ -307,6 +317,12 @@ void timeR_init_early(void) {
 	i++;
     }
 
+    /* run an overhead test with a small number of iterations */
+    for (i = 0; i < 10; i++) {
+	BEGIN_TIMER(TR_OverheadTest1);
+	END_TIMER(TR_OverheadTest1);
+    }
+
     /* measure the startup time of R */
     startup_mptr = timeR_begin_timer(TR_Startup);
     start_time   = tr_now();
@@ -317,6 +333,8 @@ void timeR_startup_done(void) {
 }
 
 void timeR_finish(void) {
+    unsigned int i;
+
     if (timeR_current_mblockidx != 0 || timeR_next_mindex != 1) {
 	/* manually build a mptr to the first timer */
 	tr_measureptr_t fini = {
@@ -328,6 +346,12 @@ void timeR_finish(void) {
     }
 
     timeR_t end_time = tr_now();
+
+    /* run a second overhead test with a large number of iterations */
+    for (i = 0; i < 1000; i++) {
+	BEGIN_TIMER(TR_OverheadTest2);
+	END_TIMER(TR_OverheadTest2);
+    }
 
     /* dump data to file */
     FILE *fd;
