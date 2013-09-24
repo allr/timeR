@@ -216,7 +216,7 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
     fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
 
-    fprintf(fd, "OverheadEstimate: %.3f - %.3f\n",
+    fprintf(fd, "OverheadEstimates %.3f %.3f\n",
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
 
@@ -317,11 +317,9 @@ void timeR_init_early(void) {
 	i++;
     }
 
-    /* run an overhead test with a small number of iterations */
-    for (i = 0; i < 10; i++) {
-	BEGIN_TIMER(TR_OverheadTest1);
-	END_TIMER(TR_OverheadTest1);
-    }
+    /* run an overhead test with just a single iteration */
+    BEGIN_TIMER(TR_OverheadTest1);
+    END_TIMER(TR_OverheadTest1);
 
     /* measure the startup time of R */
     startup_mptr = timeR_begin_timer(TR_Startup);
