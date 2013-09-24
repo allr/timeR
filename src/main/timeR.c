@@ -94,9 +94,7 @@ static char *bin_names[] = {
 
     // eval.c
     "Match",
-    "dotBuiltIn",
-    "Eval",
-    "bcEval",
+    "evalList",
 
     // internet.c
     "Download",

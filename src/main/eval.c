@@ -474,7 +474,6 @@ static SEXP forcePromise(SEXP e)
 
 SEXP eval(SEXP e, SEXP rho)
 {
-    BEGIN_TIMER(TR_Eval);
     SEXP op, tmp;
     static int evalcount = 0;
     
@@ -624,7 +623,6 @@ SEXP eval(SEXP e, SEXP rho)
 	    vmaxset(vmax);
 	}
 	else if (TYPEOF(op) == BUILTINSXP) {
-	    BEGIN_TIMER(TR_dotBuiltIn);
 	    int save = R_PPStackTop, flag = PRIMPRINT(op);
 	    const void *vmax = vmaxget();
 	    RCNTXT cntxt;
@@ -657,7 +655,6 @@ SEXP eval(SEXP e, SEXP rho)
 	    UNPROTECT(1);
 	    check_stack_balance(op, save);
 	    vmaxset(vmax);
-	    END_TIMER(TR_dotBuiltIn);
 	}
 	else if (TYPEOF(op) == CLOSXP) {
 	    PROTECT(tmp = promiseArgs(CDR(e), rho));
@@ -675,7 +672,6 @@ SEXP eval(SEXP e, SEXP rho)
     }
     R_EvalDepth = depthsave;
     R_Srcref = srcrefsave;
-    END_TIMER(TR_Eval);
     return (tmp);
 }
 
@@ -1990,6 +1986,7 @@ SEXP attribute_hidden do_set(SEXP call, SEXP op, SEXP args, SEXP rho)
  */
 SEXP attribute_hidden evalList(SEXP el, SEXP rho, SEXP call, int n)
 {
+    BEGIN_TIMER(TR_evalList);
     SEXP head, tail, ev, h;
 
     head = R_NilValue;
@@ -2044,6 +2041,7 @@ SEXP attribute_hidden evalList(SEXP el, SEXP rho, SEXP call, int n)
     if (head!=R_NilValue) 
         UNPROTECT(1);
 
+    END_TIMER(TR_evalList);
     return head;
 
 } /* evalList() */
@@ -4170,8 +4168,6 @@ static R_INLINE void checkForMissings(SEXP args, SEXP call)
 
 static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 {
-  BEGIN_TIMER(TR_bcEval);
-
   SEXP value, constants;
   BCODE *pc, *codebase;
   int ftype = 0;
@@ -4196,7 +4192,6 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
   /* allow bytecode to be disabled for testing */
   if (R_disable_bytecode) {
       SEXP ans = eval(bytecodeExpr(body), rho);
-      END_TIMER(TR_bcEval);
       return ans;
   }
 
@@ -4211,7 +4206,6 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 		  warning(_("bytecode version mismatch; using eval"));
 	      }
 	      SEXP ans = eval(bytecodeExpr(body), rho);
-	      END_TIMER(TR_bcEval);
 	      return ans;
 	  }
 	  else if (version < R_bcMinVersion)
@@ -5081,7 +5075,6 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 #ifdef BC_PROFILING
   current_opcode = old_current_opcode;
 #endif
-  END_TIMER(TR_bcEval);
   return value;
 }
 

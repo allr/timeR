@@ -104,9 +104,7 @@ typedef enum {
 
     // eval.c
     TR_Match,
-    TR_dotBuiltIn,
-    TR_Eval,
-    TR_bcEval,
+    TR_evalList,
 
     // internet.c
     TR_Download,
