@@ -97,6 +97,7 @@ typedef enum {
     TR_Duplicate,
 
     // envir.c
+    TR_findVarInFrame3other,
     TR_SymLookup,
     TR_FunLookup,
     TR_FunLookupEval,
