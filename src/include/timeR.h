@@ -64,9 +64,6 @@ typedef enum {
     TR_allocList,
     TR_allocS4,
     TR_GCInternal,
-    TR_Protect,
-    TR_Unprotect,
-    TR_UnprotectPtr,
 
     // arith.c
     TR_doArith,
@@ -103,9 +100,6 @@ typedef enum {
     TR_SymLookup,
     TR_FunLookup,
     TR_FunLookupEval,
-
-    // errors.c
-    TR_CheckStack,
 
     // eval.c
     TR_Match,

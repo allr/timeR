@@ -2840,7 +2840,6 @@ static void reset_pp_stack(void *data)
 
 SEXP protect(SEXP s)
 {
-    BEGIN_TIMER(TR_Protect);
     if (R_PPStackTop >= R_PPStackSize) {
 	RCNTXT cntxt;
 	int oldpps = R_PPStackSize;
@@ -2857,7 +2856,6 @@ SEXP protect(SEXP s)
 	endcontext(&cntxt); /* not reached */
     }
     R_PPStack[R_PPStackTop++] = CHK(s);
-    END_TIMER(TR_Protect);
     return s;
 }
 
@@ -2866,12 +2864,10 @@ SEXP protect(SEXP s)
 
 void unprotect(int l)
 {
-    BEGIN_TIMER(TR_Unprotect);
     if (R_PPStackTop >=  l)
 	R_PPStackTop -= l;
     else
 	error(_("unprotect(): only %d protected items"), R_PPStackTop);
-    END_TIMER(TR_Unprotect);
 }
 
 
@@ -2879,7 +2875,6 @@ void unprotect(int l)
 
 void unprotect_ptr(SEXP s)
 {
-    BEGIN_TIMER(TR_UnprotectPtr);
     int i = R_PPStackTop;
 
     /* go look for  s  in  R_PPStack */
@@ -2895,7 +2890,6 @@ void unprotect_ptr(SEXP s)
     while (++i < R_PPStackTop) R_PPStack[i - 1] = R_PPStack[i];
 
     R_PPStackTop--;
-    END_TIMER(TR_UnprotectPtr);
 }
 
 /* Debugging function:  is s protected? */

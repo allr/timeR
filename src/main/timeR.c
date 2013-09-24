@@ -54,9 +54,6 @@ static char *bin_names[] = {
     "allocList",
     "allocS4",
     "GCInternal",
-    "Protect",
-    "Unprotect",
-    "UnprotectPtr",
 
     // arith.c
     "doArith",
@@ -93,9 +90,6 @@ static char *bin_names[] = {
     "SymLookup",
     "FunLookup",
     "FunLookupEval",
-
-    // errors.c
-    "CheckStack",
 
     // eval.c
     "Match",
