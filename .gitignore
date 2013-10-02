@@ -158,3 +158,8 @@ autom4te.cache
 acinclude.m4
 aclocal.m4
 .RData
+/src/extra/xz/*.h
+/src/extra/xz/*.c
+/src/extra/xz/stamp
+/src/scripts/javareconf
+/src/scripts/rtags
