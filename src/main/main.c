@@ -348,7 +348,6 @@ static unsigned char DLLbuf[CONSOLE_BUFFER_SIZE+1], *DLLbufp;
 
 void R_ReplDLLinit(void)
 {
-    R_IoBufferInit(&R_ConsoleIob);
     MARK_TIMER();
     SETJMP(R_Toplevel.cjmpbuf);
     RELEASE_TIMER();
@@ -796,10 +795,10 @@ void setup_Rmainloop(void)
 #ifdef LC_MONETARY
     if(!setlocale(LC_MONETARY, ""))
 	snprintf(deferred_warnings[ndeferred_warnings++], 250,
-		 "Setting LC_PAPER failed, using \"C\"\n");
+		 "Setting LC_MONETARY failed, using \"C\"\n");
 #endif
 #ifdef LC_PAPER
-    if(!setlocale(LC_MONETARY, ""))
+    if(!setlocale(LC_PAPER, ""))
 	snprintf(deferred_warnings[ndeferred_warnings++], 250,
 		 "Setting LC_PAPER failed, using \"C\"\n");
 #endif
@@ -892,7 +891,7 @@ void setup_Rmainloop(void)
        user's profile (in that order).  If there is an error, we
        drop through to further processing.
     */
-
+    R_IoBufferInit(&R_ConsoleIob);
     R_LoadProfile(R_OpenSysInitFile(), baseEnv);
     /* These are the same bindings, so only lock them once */
     R_LockEnvironment(R_BaseNamespace, TRUE);
@@ -1032,7 +1031,6 @@ void run_Rmainloop(void)
     BEGIN_TIMER(TR_Repl);
     /* Here is the real R read-eval-loop. */
     /* We handle the console until end-of-file. */
-    R_IoBufferInit(&R_ConsoleIob);
     MARK_TIMER();
     SETJMP(R_Toplevel.cjmpbuf);
     RELEASE_TIMER();

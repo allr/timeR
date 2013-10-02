@@ -1,7 +1,7 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
  *  Copyright (C) 1995, 1996, 1997  Robert Gentleman and Ross Ihaka
- *  Copyright (C) 1998--2012	    The R Core Team.
+ *  Copyright (C) 1998--2013	    The R Core Team.
  *  Copyright (C) 2003-4	    The R Foundation
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -301,6 +301,7 @@ static double logbase(double x, double base)
 
 SEXP R_unary(SEXP, SEXP, SEXP);
 SEXP R_binary(SEXP, SEXP, SEXP, SEXP);
+static SEXP logical_unary(ARITHOP_TYPE, SEXP, SEXP);
 static SEXP integer_unary(ARITHOP_TYPE, SEXP, SEXP);
 static SEXP real_unary(ARITHOP_TYPE, SEXP, SEXP);
 static SEXP real_binary(ARITHOP_TYPE, SEXP, SEXP);
@@ -542,6 +543,7 @@ SEXP attribute_hidden R_unary(SEXP call, SEXP op, SEXP s1)
     ARITHOP_TYPE operation = (ARITHOP_TYPE) PRIMVAL(op);
     switch (TYPEOF(s1)) {
     case LGLSXP:
+	return logical_unary(operation, s1, call);
     case INTSXP:
 	return integer_unary(operation, s1, call);
     case REALSXP:
@@ -550,6 +552,33 @@ SEXP attribute_hidden R_unary(SEXP call, SEXP op, SEXP s1)
 	return complex_unary(operation, s1, call);
     default:
 	errorcall(call, _("invalid argument to unary operator"));
+    }
+    return s1;			/* never used; to keep -Wall happy */
+}
+
+static SEXP logical_unary(ARITHOP_TYPE code, SEXP s1, SEXP call)
+{
+    R_xlen_t i, n;
+    int x;
+    SEXP ans;
+
+    switch (code) {
+    case PLUSOP:
+	ans = duplicate(s1);
+	SET_TYPEOF(ans, INTSXP);
+	return ans;
+    case MINUSOP:
+	ans = duplicate(s1);
+	SET_TYPEOF(ans, INTSXP);
+	n = XLENGTH(s1);
+	for (i = 0; i < n; i++) {
+	    x = INTEGER(s1)[i];
+	    INTEGER(ans)[i] = (x == NA_INTEGER) ?
+		NA_INTEGER : ((x == 0.0) ? 0 : -x);
+	}
+	return ans;
+    default:
+	errorcall(call, _("invalid unary operator"));
     }
     return s1;			/* never used; to keep -Wall happy */
 }
@@ -660,6 +689,7 @@ static SEXP integer_binary(ARITHOP_TYPE code, SEXP s1, SEXP s2, SEXP lcall)
     else
 	ans = allocVector(INTSXP, n);
     if (n1 == 0 || n2 == 0) return(ans);
+    PROTECT(ans);
 
     switch (code) {
     case PLUSOP:
@@ -773,7 +803,7 @@ static SEXP integer_binary(ARITHOP_TYPE code, SEXP s1, SEXP s2, SEXP lcall)
 	}
 	break;
     }
-
+    UNPROTECT(1);
 
     /* quick return if there are no attributes */
     if (ATTRIB(s1) == R_NilValue && ATTRIB(s2) == R_NilValue)
@@ -1297,6 +1327,8 @@ static SEXP math2_2(SEXP sa, SEXP sb, SEXP sI1, SEXP sI2,
     return sy;
 } /* math2_2() */
 
+/* This is only used directly by .Internal for Bessel functions,
+   so managing R_alloc stack is only prudence */
 static SEXP math2B(SEXP sa, SEXP sb, double (*f)(double, double, double *),
 		   SEXP lcall)
 {
@@ -1321,6 +1353,7 @@ static SEXP math2B(SEXP sa, SEXP sb, double (*f)(double, double, double *),
 	double av = b[i] < 0 ? -b[i] : b[i];
 	if (av > amax) amax = av;
     }
+    const void *vmax = vmaxget();
     nw = 1 + (long)floor(amax);
     work = (double *) R_alloc((size_t) nw, sizeof(double));
 
@@ -1335,7 +1368,7 @@ static SEXP math2B(SEXP sa, SEXP sb, double (*f)(double, double, double *),
 	}
     }
 
-
+    vmaxset(vmax);
     FINISH_Math2;
 
     return sy;
@@ -1412,7 +1445,7 @@ SEXP attribute_hidden do_Math2(SEXP call, SEXP op, SEXP args, SEXP env)
     if (length(args) >= 2 &&
 	isSymbol(CADR(args)) && R_isMissing(CADR(args), env)) {
 	double digits = 0;
-	if(PRIMVAL(op) == 10004) digits = 6.0;
+	if(PRIMVAL(op) == 10004) digits = 6.0; // for signif()
 	PROTECT(args = list2(CAR(args), ScalarReal(digits))); nprotect++;
     }
 
@@ -1433,6 +1466,7 @@ SEXP attribute_hidden do_Math2(SEXP call, SEXP op, SEXP args, SEXP env)
     if (! DispatchGroup("Math", call2, op, args, env, &res)) {
 	if(n == 1) {
 	    double digits = 0.0;
+	    check1arg(args, call, "x");
 	    if(PRIMVAL(op) == 10004) digits = 6.0;
 	    SETCDR(args, CONS(ScalarReal(digits), R_NilValue));
 	} else {
@@ -1501,6 +1535,7 @@ SEXP attribute_hidden do_log(SEXP call, SEXP op, SEXP args, SEXP env)
     if (! DispatchGroup("Math", call2, op, args, env, &res)) {
 	switch (n) {
 	case 1:
+	    check1arg(args, call, "x");
 	    if (isComplex(CAR(args)))
 		res = complex_math1(call, op, args, env);
 	    else
@@ -1635,6 +1670,8 @@ static SEXP math3_2(SEXP sa, SEXP sb, SEXP sc, SEXP sI, SEXP sJ,
     return sy;
 } /* math3_2 */
 
+/* This is only used directly by .Internal for Bessel functions,
+   so managing R_alloc stack is only prudence */
 static SEXP math3B(SEXP sa, SEXP sb, SEXP sc,
 		   double (*f)(double, double, double, double *), SEXP lcall)
 {
@@ -1654,6 +1691,7 @@ static SEXP math3B(SEXP sa, SEXP sb, SEXP sc,
 	double av = b[i] < 0 ? -b[i] : b[i];
 	if (av > amax) amax = av;
     }
+    const void *vmax = vmaxget();
     nw = 1 + (long)floor(amax);
     work = (double *) R_alloc((size_t) nw, sizeof(double));
 
@@ -1670,6 +1708,7 @@ static SEXP math3B(SEXP sa, SEXP sb, SEXP sc,
     }
 
     FINISH_Math3;
+    vmaxset(vmax);
 
     return sy;
 } /* math3B */

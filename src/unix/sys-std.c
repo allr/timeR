@@ -786,6 +786,7 @@ static char *R_completion_generator(const char *text, int state)
 	    assignCall = PROTECT(lang2(RComp_assignTokenSym, mkString(text))),
 	    completionCall = PROTECT(lang1(RComp_completeTokenSym)),
 	    retrieveCall = PROTECT(lang1(RComp_retrieveCompsSym));
+	const void *vmax = vmaxget();
 
 	eval(assignCall, rcompgen_rho);
 	eval(completionCall, rcompgen_rho);
@@ -799,6 +800,7 @@ static char *R_completion_generator(const char *text, int state)
 		compstrings[i] = strdup(translateChar(STRING_ELT(completions, i)));
 	}
 	UNPROTECT(4);
+	vmaxset(vmax);
     }
 
     if (list_index < ncomp)
@@ -860,7 +862,7 @@ Rstd_ReadConsole(const char *prompt, unsigned char *buf, int len,
 	    char *ob = obuf;
 	    if(!cd) {
 		cd = Riconv_open("", R_StdinEnc);
-		if(!cd) error(_("encoding '%s' is not recognised"), R_StdinEnc);
+		if(cd == (void *)-1) error(_("encoding '%s' is not recognised"), R_StdinEnc);
 	    }
 	    res = Riconv(cd, &ib, &inb, &ob, &onb);
 	    *ob = '\0';
@@ -1165,7 +1167,7 @@ Rstd_ShowFiles(int nfile,		/* number of files */
 	    }
 	    fclose(tfp);
 	}
-	snprintf(buf, 1024, "%s < %s", pager, filename);
+	snprintf(buf, 1024, "'%s' < '%s'", pager, filename); //might contain spaces
 	res = R_system(buf);
 	unlink(filename);
 	free(filename);

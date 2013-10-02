@@ -300,7 +300,8 @@ static SEXP ziplist(const char *zipname)
     return ans;
 }
 
-
+/* called from a .External in package 'utils', so managing
+   the R_alloc stack here is prudence */
 SEXP Runzip(SEXP args)
 {
     BEGIN_TIMER(TR_doUnzip);
@@ -308,6 +309,7 @@ SEXP Runzip(SEXP args)
     char  zipname[PATH_MAX], dest[PATH_MAX];
     const char *p, **topics = NULL;
     int   i, ntopics, list, overwrite, junk, setTime, rc, nnames = 0;
+    const void *vmax = vmaxget();
 
     if (!isString(CAR(args)) || LENGTH(CAR(args)) != 1)
 	error(_("invalid zip name argument"));
@@ -388,6 +390,7 @@ SEXP Runzip(SEXP args)
     setAttrib(ans, install("extracted"), names);
     UNPROTECT(3);
     END_TIMER(TR_doUnzip);
+    vmaxset(vmax);
     return ans;
 }
 
