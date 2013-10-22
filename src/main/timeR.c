@@ -159,7 +159,7 @@ tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
 /* additional hardcoded timers */
 static tr_measureptr_t startup_mptr;
-static timeR_t         start_time;
+static timeR_t         start_time, end_time;
 
 char *timeR_output_file;
 FILE *timeR_externals_fd;
@@ -213,6 +213,8 @@ static void timeR_dump(FILE *fd) {
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
 
+    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
+
     fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
@@ -247,10 +249,12 @@ static void timeR_dump(FILE *fd) {
 	i++;
     }
 
+    /* disable for now
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+    */
 }
 
 
@@ -336,7 +340,7 @@ void timeR_finish(void) {
 	timeR_end_timer(&fini);
     }
 
-    timeR_t end_time = tr_now();
+    end_time = tr_now();
 
     /* run a second overhead test with a large number of iterations */
     for (i = 0; i < 1000; i++) {
@@ -355,9 +359,6 @@ void timeR_finish(void) {
 	return;
 
     timeR_dump(fd);
-
-    // FIXME: Move to timeR_dump?
-    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
 
     // FIXME: Check for errors
     fclose(fd);
