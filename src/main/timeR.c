@@ -163,7 +163,7 @@ static timeR_t         start_time, end_time;
 
 char *timeR_output_file;
 FILE *timeR_externals_fd;
-int   timeR_reduced_output;
+int   timeR_reduced_output = 1;
 
 /*** internal functions ***/
 

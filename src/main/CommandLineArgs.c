@@ -265,6 +265,10 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		timeR_reduced_output = 1;
 	    }
 
+	    else if(strncmp(*av, "--timeR-verbose", 15) == 0) {
+		timeR_reduced_output = 0;
+	    }
+
 	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
                     strncmp(*av, "--time", 6) == 0) {
 		p = strchr(*av, '=');
