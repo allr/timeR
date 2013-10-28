@@ -213,18 +213,7 @@ static void timeR_dump(FILE *fd) {
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
 
-    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
-
-    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
-
-    for (unsigned int i = 0; i < next_bin; i++) {
-	if (i == TR_OverheadTest1 ||
-	    i == TR_OverheadTest2)
-	    continue;
-
-	timeR_print_bin(fd, i);
-    }
-
+    /* calculate and print sums for the builtin/special timers */
     timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
     unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
 
@@ -249,12 +238,23 @@ static void timeR_dump(FILE *fd) {
 	i++;
     }
 
-    /* disable for now
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
-    */
+
+    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
+
+    /* print all timers */
+    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
+
+    for (unsigned int i = 0; i < next_bin; i++) {
+	if (i == TR_OverheadTest1 ||
+	    i == TR_OverheadTest2)
+	    continue;
+
+	timeR_print_bin(fd, i);
+    }
 }
 
 
