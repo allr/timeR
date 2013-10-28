@@ -248,13 +248,28 @@ static void timeR_dump(FILE *fd) {
     /* print all timers */
     fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
+    timeR_t            uself_sum = 0, utotal_sum = 0;
+    unsigned long long ustart_sum = 0, uabort_sum = 0;
+    unsigned int first_ufn = TR_StaticBinCount + i; // re-use previous loop counter
+
     for (unsigned int i = 0; i < next_bin; i++) {
 	if (i == TR_OverheadTest1 ||
 	    i == TR_OverheadTest2)
 	    continue;
 
+	if (i >= first_ufn) {
+	    uself_sum  += timeR_bins[i].sum_self;
+	    utotal_sum += timeR_bins[i].sum_total;
+	    ustart_sum += timeR_bins[i].starts;
+	    uabort_sum += timeR_bins[i].aborts;
+	}
+
 	timeR_print_bin(fd, i);
     }
+
+    fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
+	    uself_sum, utotal_sum,
+	    ustart_sum, uabort_sum);
 }
 
 
