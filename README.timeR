@@ -64,8 +64,6 @@ Wishlist items:
 - bin IDs stay attached at serialisation (not critical, just inelegant)
 - wrapping of every SETJMP is extremely ugly, can't handle by wrapping
   in a function though (would return to invalid stack frame)
-- remove duplicate entries for user function timers
-  - workaround: merge-timeR.pl script in root directory sums duplicates
 
 Possible future extensions:
 - check if a reasonable file name can be generated when source() is used

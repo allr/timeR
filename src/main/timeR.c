@@ -155,6 +155,7 @@ timeR_t      timeR_current_lower_sum;
 /* bins */
 static unsigned int next_bin = TR_StaticBinCount;
 static unsigned int bin_count;
+static unsigned int first_userfn_idx;
 tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
 /* additional hardcoded timers */
@@ -167,17 +168,24 @@ int   timeR_reduced_output = 1;
 
 /*** internal functions ***/
 
-static void timeR_print_bin(FILE *fd, const tr_bin_id_t id) {
-    if (timeR_reduced_output && timeR_bins[id].starts == 0)
+static int compare_binnames(const void *a_void, const void *b_void) {
+    const tr_bin_t * const *a = a_void;
+    const tr_bin_t * const *b = b_void;
+
+    return strcmp((*a)->name, (*b)->name);
+}
+
+static void timeR_print_bin(FILE *fd, tr_bin_t *bin) {
+    if (timeR_reduced_output && bin->starts == 0)
 	return;
 
     fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
-            timeR_bins[id].name,
-            timeR_bins[id].sum_self,
-            timeR_bins[id].sum_total,
-            timeR_bins[id].starts,
-            timeR_bins[id].aborts,
-            timeR_bins[id].bcode);
+            bin->name,
+            bin->sum_self,
+            bin->sum_total,
+            bin->starts,
+            bin->aborts,
+            bin->bcode);
 }
 
 static void timeR_dump(FILE *fd) {
@@ -238,38 +246,79 @@ static void timeR_dump(FILE *fd) {
 	i++;
     }
 
+    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
 
-    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
+    /* sort the user function timers by name */
+    tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
+    if (binpointers == NULL)
+	abort();
 
-    /* print all timers */
-    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
-
+    // use this opportunity to calculate the user function sum too
     timeR_t            uself_sum = 0, utotal_sum = 0;
     unsigned long long ustart_sum = 0, uabort_sum = 0;
-    unsigned int first_ufn = TR_StaticBinCount + i; // re-use previous loop counter
 
-    for (unsigned int i = 0; i < next_bin; i++) {
-	if (i == TR_OverheadTest1 ||
-	    i == TR_OverheadTest2)
-	    continue;
+    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *bin = &timeR_bins[i + first_userfn_idx];
 
-	if (i >= first_ufn) {
-	    uself_sum  += timeR_bins[i].sum_self;
-	    utotal_sum += timeR_bins[i].sum_total;
-	    ustart_sum += timeR_bins[i].starts;
-	    uabort_sum += timeR_bins[i].aborts;
-	}
-
-	timeR_print_bin(fd, i);
+	binpointers[i] = bin;
+	uself_sum     += bin->sum_self;
+	utotal_sum    += bin->sum_total;
+	ustart_sum    += bin->starts;
+	uabort_sum    += bin->aborts;
     }
 
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
 	    uself_sum, utotal_sum,
 	    ustart_sum, uabort_sum);
+
+    qsort(binpointers, next_bin - first_userfn_idx, sizeof(tr_bin_t *),
+	  compare_binnames);
+
+    /* merge duplicates */
+    tr_bin_t *prev_bin = binpointers[0];
+
+    for (unsigned int i = 1; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *cur_bin = binpointers[i];
+
+	if (!strcmp(prev_bin->name, cur_bin->name)) {
+	    // same name, merge and disable the current one
+	    prev_bin->sum_self  += cur_bin->sum_self;
+	    prev_bin->sum_total += cur_bin->sum_total;
+	    prev_bin->starts    += cur_bin->starts;
+	    prev_bin->aborts    += cur_bin->aborts;
+	    prev_bin->bcode     |= cur_bin->bcode;
+
+	    cur_bin->name[0] = 0;
+	} else {
+	    prev_bin = cur_bin;
+	}
+    }
+
+    /* print static and function table timers */
+    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
+
+    for (unsigned int i = 0; i < first_userfn_idx; i++) {
+	if (i == TR_OverheadTest1 ||
+	    i == TR_OverheadTest2)
+	    continue;
+
+	timeR_print_bin(fd, &timeR_bins[i]);
+    }
+
+    /* print user function timers */
+    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *bin = binpointers[i];
+
+        if (bin->name[0] != 0)
+	    /* print only if it has a name */
+	    timeR_print_bin(fd, bin);
+    }
+
+    free(binpointers);
 }
 
 
@@ -328,6 +377,8 @@ void timeR_init_early(void) {
 
 	i++;
     }
+
+    first_userfn_idx = i + TR_StaticBinCount;
 
     /* run an overhead test with just a single iteration */
     BEGIN_TIMER(TR_OverheadTest1);
