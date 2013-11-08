@@ -1406,11 +1406,16 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     int Fort = PRIMVAL(op);
 
 #ifdef TIME_R_CSTUFF
+    // FIXME: Too many timeR internals exposed here and in the
+    //        other TIME_R_CSTUFF blocks
     tr_measureptr_t rtm_mptr_dotcodefull;
-    if (Fort)
-	rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotFortranFull);
-    else
-	rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotCFull);
+    if (Fort) {
+	if (TR_dotFortranFull_State)
+	    rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotFortranFull);
+    } else {
+	if (TR_dotCFull_State)
+	    rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotCFull);
+    }
 #endif
 
     void **cargs, **cargs0 = NULL /* -Wall */;
@@ -1714,10 +1719,13 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 
 #ifdef TIME_R_CSTUFF
     tr_measureptr_t rtm_mptr_dotcode;
-    if (Fort)
-	rtm_mptr_dotcode = timeR_begin_timer(TR_dotFortran);
-    else
-	rtm_mptr_dotcode = timeR_begin_timer(TR_dotC);
+    if (Fort) {
+	if (TR_dotFortran_State)
+	    rtm_mptr_dotcode = timeR_begin_timer(TR_dotFortran);
+    } else {
+	if (TR_dotC_State)
+	    rtm_mptr_dotcode = timeR_begin_timer(TR_dotC);
+    }
 #endif
 
     switch (nargs) {
@@ -2316,7 +2324,8 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     }
 
 #ifdef TIME_R_CSTUFF
-    timeR_end_timer(&rtm_mptr_dotcode);
+    if (TR_dotFortran_State || TR_dotC_State)
+	timeR_end_timer(&rtm_mptr_dotcode);
 #endif
 
     if (dup) {
@@ -2514,7 +2523,8 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     vmaxset(vmax);
 
 #ifdef TIME_R_CSTUFF
-    timeR_end_timer(&rtm_mptr_dotcodefull);
+    if (TR_dotFortranFull_State || TR_dotCFull_State)
+	timeR_end_timer(&rtm_mptr_dotcodefull);
 #endif
 
     return ans;

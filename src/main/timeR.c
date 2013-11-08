@@ -25,6 +25,8 @@
 
 // FIXME: s/mbindex/blockidx/ for clarity
 
+#define TIMER_INCLUDE_STATE_ARRAY
+
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <assert.h>
@@ -48,8 +50,8 @@ static char *bin_names[] = {
     // internal
     "Startup",
     "UserFuncFallback",
-    "OverheadTest1",
-    "OverheadTest2",
+    "OverheadTest1",    /* MARKER:ALWAYS */
+    "OverheadTest2",    /* MARKER:ALWAYS */
 
     // memory.c
     "cons",
@@ -306,8 +308,13 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
     for (unsigned int i = 0; i < first_userfn_idx; i++) {
+	/* skip overhead timers */
 	if (i == TR_OverheadTest1 ||
 	    i == TR_OverheadTest2)
+	    continue;
+
+	/* skip disabled timers */
+	if (i < TR_StaticBinCount && !timer_enables[i])
 	    continue;
 
 	timeR_print_bin(fd, &timeR_bins[i]);

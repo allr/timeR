@@ -216,11 +216,18 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 }
 
 /* convenience macros */
+#  define TimeR_CONCAT(a,b) a ## b
+
+// note: slightly messy, but allows compile-time removal of disabled timers
+//       and the unconditional version wasn't a C statement either
 #  define BEGIN_TIMER(bin) \
-    tr_measureptr_t rtm_mptr_##bin = timeR_begin_timer(bin)
+    tr_measureptr_t rtm_mptr_##bin; \
+    if (TimeR_CONCAT(bin, _State)) \
+	rtm_mptr_##bin = timeR_begin_timer(bin)
 
 #  define END_TIMER(bin) \
-    timeR_end_timer(&rtm_mptr_##bin)
+    if (TimeR_CONCAT(bin, _State)) \
+	timeR_end_timer(&rtm_mptr_##bin)
 
 #  define MARK_TIMER() \
     tr_measureptr_t rtm_mptr_marker = timeR_mark()

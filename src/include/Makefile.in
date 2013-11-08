@@ -82,8 +82,8 @@ Rmath.h: Rmath.h0
 Rmath.h0: $(srcdir)/Rmath.h0.in $(top_builddir)/config.status
 	@cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
-timeR-timerlist.h: $(top_srcdir)/src/main/timeR.c
-	@$(top_srcdir)/tools/timeR-genlist.pl $< $@
+timeR-timerlist.h: $(top_srcdir)/src/main/timeR.c $(top_builddir)/config.status $(top_builddir)/@TIME_R_STATIC_LIST@
+	@$(top_srcdir)/tools/timeR-genlist.pl $< $(top_srcdir)/@TIME_R_STATIC_LIST@ $@
 
 install: installdirs install-intl-@USE_INCLUDED_LIBINTL@
 	@for d in $(SUBDIRS); do \

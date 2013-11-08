@@ -1,18 +1,97 @@
 #!/usr/bin/env perl
 #
-# A script to generate timeR-timerlist.h from timeR.c
+# A script to generate timeR-timerlist.h from timeR.c and a
+# configuration file to selectively enable/disable timers.
 
 use warnings;
 use strict;
 use feature ':5.10';
+no if $] >= 5.018, 'warnings', "experimental::smartmatch";
 
-if (scalar(@ARGV) != 2) {
-    say STDERR "Usage: $0 timeR.c timeR-timerlist.h";
+# parse a string into a boolean value
+sub parse_bool {
+    my $word = lc shift;
+
+    given ($word) {
+        when ([qw/1 yes on true/]) {
+            return 1;
+        }
+        when ([qw/0 no off false/]) {
+            return 0;
+        }
+        default {
+            return undef;
+        }
+    }
+}
+
+
+
+
+if (scalar(@ARGV) != 3) {
+    say STDERR "Usage: $0 timeR.c timer-onoff.txt timeR-timerlist.h";
     exit 1;
 }
 
 my $input_file  = shift;
+my $onoff_file  = shift;
 my $output_file = shift;
+
+# read onoff-file
+
+my $default_state = 0;
+my %timer_settings;
+
+if ($onoff_file eq "all") {
+    # special file name "all" enables everything
+    $default_state = 1;
+
+} else {
+    open IN, "<", $onoff_file or die "Can't open $onoff_file: $!";
+
+    while (<IN>) {
+        chomp;
+        s/^\s+//; s/\s+$//; s/\s*#.*$//;
+        next if $_ eq "";
+
+        my @words = split /\s+/, $_;
+
+        if (scalar(@words) != 2) {
+            say STDERR "ERROR: line $. in $onoff_file does not contain exactly two tokens";
+            exit 2;
+        }
+
+        given ($words[0]) {
+            when ("default") {
+                $default_state = parse_bool($words[1]);
+
+                if (!defined($default_state)) {
+                    say STDERR "ERROR: $words[1] in line $. of $onoff_file could not be parsed as boolean";
+                    exit 2;
+                }
+            }
+
+            default {
+                # assume it's a timer name and check at a later time
+                my $tmp = parse_bool($words[1]);
+
+                if (!defined($tmp)) {
+                    say STDERR "ERROR: $words[1] in line $. of $onoff_file could not be parsed as boolean";
+                    exit 2;
+                }
+
+                if (exists($timer_settings{$words[0]})) {
+                    say STDERR "WARNING: Timer $words[1] found multiple times in $onoff_file";
+                }
+
+                $timer_settings{$words[0]} = $tmp;
+            }
+        }
+    }
+}
+
+close IN;
+
 
 # search for start marker in timeR.c
 open IN, "<", $input_file or die "Can't open $input_file: $!";
@@ -43,29 +122,93 @@ EOF
 
 # read timer list from timeR.c
 my @timers;
+my @timer_states;
 
 while (<IN>) {
     last if /MARKER:END/;
 
     chomp;
     if (/\"([^"]+)\"/) {
-      # timer name
-      say OUT "    TR_$1,";
-      push @timers, $_;
+        # timer name
+        say OUT "    TR_$1,";
+        push @timers, $1;
+
+        if (/MARKER:ALWAYS/) {
+            push @timer_states, "A";
+        } else {
+            push @timer_states, $default_state;
+        }
     } else {
-      # other string
-      say OUT $_;
+        # other string
+        say OUT $_;
     }
 }
+
+close IN;
 
 print OUT <<EOF;
 
     /* must be the last entry, is assumed to be the first R_FunTab timer */
     TR_StaticBinCount
 } tr_bin_id_t;
+
+/* symbols for disabling the timers at compile-time */
 EOF
 
-say OUT "\n#endif";
+# Go over list of timer states read from onoff file and update @timer_states
+for (my $i = 0; $i < scalar(@timers); $i++) {
+    my $name = $timers[$i];
+
+    if (exists($timer_settings{$name})) {
+        my $st = $timer_settings{$name};
+        if ($timer_states[$i] eq "A" &&
+            $st != 1) {
+            say STDERR "ERROR: Attempted to disabled always-on timer $name";
+            exit 2;
+        }
+
+        $timer_states[$i] = $st;
+        delete $timer_settings{$name};
+
+    } elsif ($timer_states[$i] eq "A") {
+        $timer_states[$i] = 1;
+    }
+}
+
+# check for remaining entries (unknown timers)
+if (scalar(%timer_settings) > 0) {
+    printf STDERR "WARNING: %s specifies unknown timer%s:\n",
+      $onoff_file, scalar(%timer_settings) != 1 ? "s": "";
+    foreach (sort keys %timer_settings) {
+        say STDERR "    $_";
+    }
+}
+
+# generate onoff-macros
+for (my $i = 0; $i < scalar(@timers); $i++) {
+    say OUT "#define TR_", $timers[$i], "_State ", $timer_states[$i];
+}
+
+# generate state array
+print OUT <<EOF;
+
+/* array of timer states */
+#ifdef TIMER_INCLUDE_STATE_ARRAY
+static const char timer_enables[] = {
+EOF
+
+for (my $i = 0; $i < scalar(@timers); $i++) {
+    print OUT "   " if ($i % 8) == 0;
+    print OUT " $timer_states[$i],";
+    print OUT "\n"  if ($i % 8) == 7;
+}
+
+print OUT <<EOF;
+
+};
+#endif
+
+#endif
+EOF
 
 close OUT;
-close IN;

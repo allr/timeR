@@ -359,6 +359,12 @@ AC_ARG_WITH([timeR-clock],
  esac],
 [with_time_r_clock="posix"])
 
+## timeR static timer list
+AC_ARG_WITH([timeR-static-list],
+[AS_HELP_STRING([--with-timeR-static-list=FILE],[select a file with a list of static timers @<:@tools/timeR-staticlist.txt@:>@])],
+[with_time_r_staticlist="${withval}"],
+[with_time_r_staticlist=tools/timeR-staticlist.txt])
+
 ## BLAS.
 AC_ARG_WITH([blas],
 [AS_HELP_STRING([--with-blas],[use system BLAS library (if available), or specify it @<:@no@:>@])],
@@ -2272,6 +2278,8 @@ AC_SUBST(HAVE_TIME_R)
 AC_SUBST(TIME_R_CLOCK_POSIX)
 AC_SUBST(TIME_R_CLOCK_RDTSC)
 AC_SUBST(TIME_R_CLOCK_RDTSCP)
+
+AC_SUBST(TIME_R_STATIC_LIST, ${with_time_r_staticlist})
 
 ## R profiling.
 if test "${want_R_profiling}" = yes; then

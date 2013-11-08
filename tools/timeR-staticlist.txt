@@ -1,0 +1,74 @@
+# This is an example file that defines which of the
+# static files of timeR should be enabled in R.
+# If you want to change it, it is recommended to make
+# a copy and specify the name of the copy using the
+# "--with-timeR-static-list=...txt" option of the
+# configure script.
+#
+# Any text after a # is ignored
+
+# Empty lines are ignored
+
+# select the default timer state
+default on
+# if this is not specified, the default state is "off"
+#default off
+
+# Lines other than "default" specify the state for the
+# timer named in that line. Currently the following
+# timers are defined, the list comes from
+# src/main/timeR.c, array "bin_names". Please check the
+# main timeR README.md file for details about these timers.
+
+# Startup              on
+# UserFuncFallback     on
+# (OverheadTest1/2 are internal only and cannot be disabled)
+# cons                 on
+# allocVector          on
+# allocList            on
+# allocS4              on
+# GCInternal           on
+# doArith              on
+# doMatprod            on
+# gzFile               on
+# bzFile               on
+# xzFile               on
+# onExits              on
+# dotExternalFull      on
+# dotExternal          on
+# dotCallFull          on
+# dotCall              on
+# dotCFull             on
+# dotC                 on
+# dotFortranFull       on
+# dotFortran           on
+# doUnzip              on
+# zipRead              on
+# Duplicate            on
+# findVarInFrame3other on
+# SymLookup            on
+# FunLookup            on
+# FunLookupEval        on
+# Match                on
+# evalList             on
+# Download             on
+# doLogic              on
+# doLogic2             on
+# Repl                 on
+# SetupMainLoop        on
+# endMainloop          on
+# Install              on
+# dotSpecial2          on
+# doRelop              on
+# doSubset             on
+# doSubset2            on
+# doSubset3            on
+# inSockRead           on
+# inSockWrite          on
+# inSockOpen           on
+# inSockConnect        on
+# Sleep                on
+# System               on
+
+# Tip: You can also use "1", "yes" or "true" instead of "on" and
+#      "0", "no" or "false" instead of "off"
