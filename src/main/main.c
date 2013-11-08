@@ -735,7 +735,7 @@ void setup_Rmainloop(void)
     char deferred_warnings[11][250];
     volatile int ndeferred_warnings = 0;
 
-    BEGIN_TIMER(TR_SetupMainloop);
+    BEGIN_TIMER(TR_SetupMainLoop);
 
     InitConnections(); /* needed to get any output at all */
 
@@ -1011,7 +1011,7 @@ void setup_Rmainloop(void)
     /* trying to do this earlier seems to run into bootstrapping issues. */
     R_init_jit_enabled();
     R_Is_Running = 2;
-    END_TIMER(TR_SetupMainloop);
+    END_TIMER(TR_SetupMainLoop);
 }
 
 extern SA_TYPE SaveAction; /* from src/main/startup.c */

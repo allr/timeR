@@ -42,6 +42,9 @@
  * must be in sync with tr_bin_id_t in timeR.h!
  */
 static char *bin_names[] = {
+    /* The following list is also parsed by timeR-genconfig.pl, so please   */
+    /* keep it in one entry per line format and do not move the markers     */
+    /* MARKER:START */
     // internal
     "Startup",
     "UserFuncFallback",
@@ -131,6 +134,7 @@ static char *bin_names[] = {
 
     // sys-unix.c
     "System",
+    /* MARKER:END */
 };
 
 typedef char static_assert___names_and_enums_do_not_match

@@ -164,3 +164,4 @@ aclocal.m4
 /src/scripts/javareconf
 /src/scripts/rtags
 *.bak
+src/include/timeR-timerlist.h

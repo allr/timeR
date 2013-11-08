@@ -29,6 +29,7 @@ DISTFILES = README \
 	missing \
 	move-if-change \
 	rsync-recommended \
+	timeR-genlist.pl \
 	updatefat
 
 CLEANFILES =
