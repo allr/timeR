@@ -40,7 +40,6 @@ typedef long long timeR_t;
 /* read the current time */
 static inline timeR_t tr_now(void) {
     struct timespec ts;
-    timeR_t t;
 
     /* add an optimization barrier so the compiler won't move the call around */
     asm volatile ("" ::: "memory");

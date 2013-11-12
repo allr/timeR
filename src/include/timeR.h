@@ -93,7 +93,6 @@ void timeR_dump_timer_stack(void);
 
 /* fast path implementation */
 static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
-    /* capture start time early to simplify overhead subtraction */
     timeR_t         start = tr_now();
     tr_timer_t      *m;
     tr_measureptr_t mptr;
@@ -123,7 +122,7 @@ static inline tr_measureptr_t timeR_begin_timer(tr_bin_id_t timer) {
 static inline void TMR_ALWAYS_INLINE timeR_end_latest_timer(timeR_t endtime) {
     tr_timer_t *m;
     tr_bin_t   *bin;
-    timeR_t     diff, tmp;
+    timeR_t     diff;
 
     if (timeR_next_mindex == 0) {
         /* go back one mblock */
@@ -189,7 +188,7 @@ void         timeR_name_bin_anonfunc(unsigned int bin_id, const char *file,
                                      unsigned int line, unsigned int pos);
 void         timeR_release(tr_measureptr_t *marker);
 
-static const char *timeR_get_bin_name(unsigned int bin_id) {
+static inline const char *timeR_get_bin_name(unsigned int bin_id) {
   return timeR_bins[bin_id].name;
 }
 
@@ -292,9 +291,11 @@ static inline void timeR_name_bin_anonfunc(unsigned int bin_id,
 					   unsigned int line,
 					   unsigned int pos) {}
 
-static const char * timeR_get_bin_name(unsigned int bin_id) {
+static inline const char * timeR_get_bin_name(unsigned int bin_id) {
   return "";
 }
+
+static inline void timeR_mark_bcode(unsigned int bin_id) {}
 
 static inline void timeR_report_external(int /*NativeSymbolType*/ type,
                                          char *buf,

@@ -226,7 +226,7 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "OverheadEstimates %.3f %.3f\n",
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
-    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
+    fprintf(fd, "TotalRuntime\t%ld\n", (unsigned long)(end_time - start_time));
 
 #ifdef TIME_R_FUNTAB
     /* calculate and print sums for the builtin/special timers */
@@ -466,8 +466,6 @@ void timeR_finish(void) {
 }
 
 void timeR_measureblock_full(void) {
-    tr_measureptr_t mptr;
-
     /* current block is now full, switch to the next one */
     timeR_current_mblockidx++;
 
@@ -495,8 +493,6 @@ void timeR_measureblock_full(void) {
 }
 
 void timeR_end_timers_slowpath(const tr_measureptr_t *mptr, timeR_t when) {
-    tr_timer_t *m;
-
     /* loop until the passed timer has been processed */
     do {
 	timeR_end_latest_timer(when);
