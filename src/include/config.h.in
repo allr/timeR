@@ -1012,6 +1012,15 @@
 /* Define this to select RDTSCP as timeR clock source. */
 #undef TIME_R_CLOCK_RDTSCP
 
+/* Define this to enable function table timers. */
+#undef TIME_R_FUNTAB
+
+/* Define this to enable statically defined timers. */
+#undef TIME_R_STATICTIMERS
+
+/* Define this to enable user function timers. */
+#undef TIME_R_USERFUNCTIONS
+
 /* Define to 1 if the type of the st_atim member of a struct stat is struct
    timespec. */
 #undef TYPEOF_STRUCT_STAT_ST_ATIM_IS_STRUCT_TIMESPEC

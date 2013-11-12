@@ -813,11 +813,11 @@ custom_JAVA_CPPFLAGS
 custom_JAVA_HOME
 PAPERCONF
 R_PROFILING
+HAVE_TIME_R
 TIME_R_STATIC_LIST
 TIME_R_CLOCK_RDTSCP
 TIME_R_CLOCK_RDTSC
 TIME_R_CLOCK_POSIX
-HAVE_TIME_R
 BUILD_PCRE_FALSE
 BUILD_PCRE_TRUE
 BUILD_XZ_FALSE
@@ -1044,6 +1044,12 @@ WANT_R_SHLIB_FALSE
 WANT_R_SHLIB_TRUE
 WANT_R_FRAMEWORK_FALSE
 WANT_R_FRAMEWORK_TRUE
+WANT_TIME_R_USERFUNC_FALSE
+WANT_TIME_R_USERFUNC_TRUE
+WANT_TIME_R_FUNTAB_FALSE
+WANT_TIME_R_FUNTAB_TRUE
+WANT_TIME_R_STATIC_FALSE
+WANT_TIME_R_STATIC_TRUE
 WANT_TIME_R_FALSE
 WANT_TIME_R_TRUE
 config_opts
@@ -1111,6 +1117,9 @@ r_objc_rules_frag'
 ac_user_opts='
 enable_option_checking
 enable_timeR
+enable_timeR_static
+enable_timeR_funtab
+enable_timeR_userfunc
 enable_R_profiling
 enable_memory_profiling
 enable_R_framework
@@ -1839,6 +1848,9 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-timeR          attempt to compile support for timeR [no]
+  --enable-timeR-static   enable statically defined timeR timers [yes]
+  --enable-timeR-funtab   enable function table timeR timers [yes]
+  --enable-timeR-userfunc enable user function timeR timers [yes]
   --enable-R-profiling    attempt to compile support for Rprof() [yes]
   --enable-memory-profiling
                           attempt to compile support for Rprofmem(),
@@ -3845,6 +3857,76 @@ else
   WANT_TIME_R_TRUE='#'
   WANT_TIME_R_FALSE=
 fi
+
+
+## Allow the user to enable or disable static timers
+# Check whether --enable-timeR-static was given.
+if test "${enable_timeR_static+set}" = set; then :
+  enableval=$enable_timeR_static; if test "${enableval}" = no; then
+  want_timeR_static=no
+elif test "${enableval}" = yes; then
+  want_timeR_static=yes
+else
+  want_timeR_static=no
+fi
+else
+  want_timeR_static=yes
+fi
+
+ if test "x${want_timeR_static}" = xyes; then
+  WANT_TIME_R_STATIC_TRUE=
+  WANT_TIME_R_STATIC_FALSE='#'
+else
+  WANT_TIME_R_STATIC_TRUE='#'
+  WANT_TIME_R_STATIC_FALSE=
+fi
+
+
+## Allow the user to enable or disable function table timers
+# Check whether --enable-timeR-funtab was given.
+if test "${enable_timeR_funtab+set}" = set; then :
+  enableval=$enable_timeR_funtab; if test "${enableval}" = no; then
+  want_timeR_funtab=no
+elif test "${enableval}" = yes; then
+  want_timeR_funtab=yes
+else
+  want_timeR_funtab=no
+fi
+else
+  want_timeR_funtab=yes
+fi
+
+ if test "x${want_timeR_funtab}" = xyes; then
+  WANT_TIME_R_FUNTAB_TRUE=
+  WANT_TIME_R_FUNTAB_FALSE='#'
+else
+  WANT_TIME_R_FUNTAB_TRUE='#'
+  WANT_TIME_R_FUNTAB_FALSE=
+fi
+
+
+## Allow the user to enable or disable user function  timers
+# Check whether --enable-timeR-userfunc was given.
+if test "${enable_timeR_userfunc+set}" = set; then :
+  enableval=$enable_timeR_userfunc; if test "${enableval}" = no; then
+  want_timeR_userfunc=no
+elif test "${enableval}" = yes; then
+  want_timeR_userfunc=yes
+else
+  want_timeR_userfunc=no
+fi
+else
+  want_timeR_userfunc=yes
+fi
+
+ if test "x${want_timeR_userfunc}" = xyes; then
+  WANT_TIME_R_USERFUNC_TRUE=
+  WANT_TIME_R_USERFUNC_FALSE='#'
+else
+  WANT_TIME_R_USERFUNC_TRUE='#'
+  WANT_TIME_R_USERFUNC_FALSE=
+fi
+
 
 
 ## Allow the user to specify support for R profiling.
@@ -9054,13 +9136,13 @@ if test "${lt_cv_nm_interface+set}" = set; then :
 else
   lt_cv_nm_interface="BSD nm"
   echo "int some_variable = 0;" > conftest.$ac_ext
-  (eval echo "\"\$as_me:9057: $ac_compile\"" >&5)
+  (eval echo "\"\$as_me:9139: $ac_compile\"" >&5)
   (eval "$ac_compile" 2>conftest.err)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:9060: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
+  (eval echo "\"\$as_me:9142: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
   (eval "$NM \"conftest.$ac_objext\"" 2>conftest.err > conftest.out)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:9063: output\"" >&5)
+  (eval echo "\"\$as_me:9145: output\"" >&5)
   cat conftest.out >&5
   if $GREP 'External.*some_variable' conftest.out > /dev/null; then
     lt_cv_nm_interface="MS dumpbin"
@@ -11912,11 +11994,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:11915: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:11997: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:11919: \$? = $ac_status" >&5
+   echo "$as_me:12001: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12251,11 +12333,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12254: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12336: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:12258: \$? = $ac_status" >&5
+   echo "$as_me:12340: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12356,11 +12438,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12359: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12441: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12363: \$? = $ac_status" >&5
+   echo "$as_me:12445: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -12411,11 +12493,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12414: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12496: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12418: \$? = $ac_status" >&5
+   echo "$as_me:12500: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14778,7 +14860,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 14781 "configure"
+#line 14863 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -14874,7 +14956,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 14877 "configure"
+#line 14959 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -16823,11 +16905,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16826: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16908: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16830: \$? = $ac_status" >&5
+   echo "$as_me:16912: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16922,11 +17004,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16925: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:17007: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16929: \$? = $ac_status" >&5
+   echo "$as_me:17011: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16974,11 +17056,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16977: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:17059: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16981: \$? = $ac_status" >&5
+   echo "$as_me:17063: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -18354,11 +18436,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:18357: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:18439: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:18361: \$? = $ac_status" >&5
+   echo "$as_me:18443: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -18453,11 +18535,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:18456: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:18538: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:18460: \$? = $ac_status" >&5
+   echo "$as_me:18542: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -18505,11 +18587,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:18508: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:18590: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:18512: \$? = $ac_status" >&5
+   echo "$as_me:18594: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -23178,7 +23260,7 @@ _ACEOF
 # flags.
 r_save_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS $r_verb"
-(eval echo $as_me:23181: \"$ac_link\") >&5
+(eval echo $as_me:23263: \"$ac_link\") >&5
 r_c_v_output=`eval $ac_link 5>&1 2>&1 | grep -v 'Driving:'`
 echo "$r_c_v_output" >&5
 CFLAGS=$r_save_CFLAGS
@@ -23253,7 +23335,7 @@ _ACEOF
 # flags.
 r_save_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS $r_cv_prog_c_v"
-(eval echo $as_me:23256: \"$ac_link\") >&5
+(eval echo $as_me:23338: \"$ac_link\") >&5
 r_c_v_output=`eval $ac_link 5>&1 2>&1 | grep -v 'Driving:'`
 echo "$r_c_v_output" >&5
 CFLAGS=$r_save_CFLAGS
@@ -34238,13 +34320,33 @@ $as_echo "#define TIME_R_CLOCK_RDTSCP 1" >>confdefs.h
 
       ;;
   esac
+
+
+
+
+  TIME_R_STATIC_LIST=${with_time_r_staticlist}
+
+
+  if test "${want_timeR_static}" = yes; then
+
+$as_echo "#define TIME_R_STATICTIMERS 1" >>confdefs.h
+
+  fi
+
+  if test "${want_timeR_funtab}" = yes; then
+
+$as_echo "#define TIME_R_FUNTAB 1" >>confdefs.h
+
+  fi
+
+  if test "${want_timeR_userfunc}" = yes; then
+
+$as_echo "#define TIME_R_USERFUNCTIONS 1" >>confdefs.h
+
+  fi
 fi
 
 
-
-
-
-TIME_R_STATIC_LIST=${with_time_r_staticlist}
 
 
 ## R profiling.
@@ -35825,11 +35927,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:35828: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:35930: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:35832: \$? = $ac_status" >&5
+   echo "$as_me:35934: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -35924,11 +36026,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:35927: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:36029: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:35931: \$? = $ac_status" >&5
+   echo "$as_me:36033: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -35976,11 +36078,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:35979: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:36081: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:35983: \$? = $ac_status" >&5
+   echo "$as_me:36085: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -42253,6 +42355,18 @@ LTLIBOBJS=$ac_ltlibobjs
 
 if test -z "${WANT_TIME_R_TRUE}" && test -z "${WANT_TIME_R_FALSE}"; then
   as_fn_error $? "conditional \"WANT_TIME_R\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WANT_TIME_R_STATIC_TRUE}" && test -z "${WANT_TIME_R_STATIC_FALSE}"; then
+  as_fn_error $? "conditional \"WANT_TIME_R_STATIC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WANT_TIME_R_FUNTAB_TRUE}" && test -z "${WANT_TIME_R_FUNTAB_FALSE}"; then
+  as_fn_error $? "conditional \"WANT_TIME_R_FUNTAB\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WANT_TIME_R_USERFUNC_TRUE}" && test -z "${WANT_TIME_R_USERFUNC_FALSE}"; then
+  as_fn_error $? "conditional \"WANT_TIME_R_USERFUNC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${WANT_R_FRAMEWORK_TRUE}" && test -z "${WANT_R_FRAMEWORK_FALSE}"; then

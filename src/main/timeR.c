@@ -226,7 +226,9 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "OverheadEstimates %.3f %.3f\n",
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
+    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
 
+#ifdef TIME_R_FUNTAB
     /* calculate and print sums for the builtin/special timers */
     timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
     unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
@@ -252,19 +254,20 @@ static void timeR_dump(FILE *fd) {
 	i++;
     }
 
-    fprintf(fd, "TotalRuntime\t%ld\n", end_time - start_time);
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+#endif
 
+#ifdef TIME_R_USERFUNCTIONS
     /* sort the user function timers by name */
     tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
     if (binpointers == NULL)
 	abort();
 
     // use this opportunity to calculate the user function sum too
-    timeR_t            uself_sum = 0, utotal_sum = 0;
+    timeR_t            uself_sum  = 0, utotal_sum = 0;
     unsigned long long ustart_sum = 0, uabort_sum = 0;
 
     for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
@@ -303,33 +306,49 @@ static void timeR_dump(FILE *fd) {
 	    prev_bin = cur_bin;
 	}
     }
+#endif // TIME_R_USERFUNCTIONS
 
     /* print static and function table timers */
     fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
-    for (unsigned int i = 0; i < first_userfn_idx; i++) {
+#if !defined(TIME_R_STATICTIMERS) && defined(TIME_R_USERFUNCTIONS)
+    // ensure the fallback timer is printed if static timers are off
+    timeR_print_bin(fd, &timeR_bins[TR_UserFuncFallback]);
+#endif
+
+#ifdef TIME_R_STATICTIMERS
+    for (unsigned int i = 0; i < TR_StaticBinCount; i++) {
 	/* skip overhead timers */
 	if (i == TR_OverheadTest1 ||
 	    i == TR_OverheadTest2)
 	    continue;
 
 	/* skip disabled timers */
-	if (i < TR_StaticBinCount && !timer_enables[i])
+	if (!timer_enables[i])
 	    continue;
 
 	timeR_print_bin(fd, &timeR_bins[i]);
     }
+#endif
 
+#ifdef TIME_R_FUNTAB
+    for (unsigned int i = TR_StaticBinCount; i < first_userfn_idx; i++)
+	timeR_print_bin(fd, &timeR_bins[i]);
+#endif
+
+
+#ifdef TIME_R_USERFUNCTIONS
     /* print user function timers */
     for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
 	tr_bin_t *bin = binpointers[i];
 
-        if (bin->name[0] != 0)
+	if (bin->name[0] != 0)
 	    /* print only if it has a name */
 	    timeR_print_bin(fd, bin);
     }
 
     free(binpointers);
+#endif
 }
 
 
@@ -369,6 +388,8 @@ void timeR_init_early(void) {
     }
 
     /* add bins for the .Internal/.Primitive functions */
+    /* this happens even when function table timers are disabled */
+    /* to simplify the rest of the code                          */
     char fnname[1024];
 
     i = 0;

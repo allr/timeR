@@ -207,6 +207,46 @@ fi],
 [want_timeR=no])
 AM_CONDITIONAL(WANT_TIME_R, [test "x${want_timeR}" = xyes])
 
+## Allow the user to enable or disable static timers
+AC_ARG_ENABLE([timeR-static],
+[AS_HELP_STRING([--enable-timeR-static],[enable statically defined timeR timers @<:@yes@:>@])],
+[if test "${enableval}" = no; then
+  want_timeR_static=no
+elif test "${enableval}" = yes; then
+  want_timeR_static=yes
+else
+  want_timeR_static=no
+fi],
+[want_timeR_static=yes])
+AM_CONDITIONAL(WANT_TIME_R_STATIC, [test "x${want_timeR_static}" = xyes])
+
+## Allow the user to enable or disable function table timers
+AC_ARG_ENABLE([timeR-funtab],
+[AS_HELP_STRING([--enable-timeR-funtab],[enable function table timeR timers @<:@yes@:>@])],
+[if test "${enableval}" = no; then
+  want_timeR_funtab=no
+elif test "${enableval}" = yes; then
+  want_timeR_funtab=yes
+else
+  want_timeR_funtab=no
+fi],
+[want_timeR_funtab=yes])
+AM_CONDITIONAL(WANT_TIME_R_FUNTAB, [test "x${want_timeR_funtab}" = xyes])
+
+## Allow the user to enable or disable user function  timers
+AC_ARG_ENABLE([timeR-userfunc],
+[AS_HELP_STRING([--enable-timeR-userfunc],[enable user function timeR timers @<:@yes@:>@])],
+[if test "${enableval}" = no; then
+  want_timeR_userfunc=no
+elif test "${enableval}" = yes; then
+  want_timeR_userfunc=yes
+else
+  want_timeR_userfunc=no
+fi],
+[want_timeR_userfunc=yes])
+AM_CONDITIONAL(WANT_TIME_R_USERFUNC, [test "x${want_timeR_userfunc}" = xyes])
+
+
 ## Allow the user to specify support for R profiling.
 AC_ARG_ENABLE([R-profiling],
 [AS_HELP_STRING([--enable-R-profiling],[attempt to compile support for Rprof() @<:@yes@:>@])],
@@ -2273,13 +2313,27 @@ if test "${want_timeR}" = yes; then
       AC_DEFINE(TIME_R_CLOCK_RDTSCP, 1, [Define this to select RDTSCP as timeR clock source.])
       ;;
   esac
-fi
-AC_SUBST(HAVE_TIME_R)
-AC_SUBST(TIME_R_CLOCK_POSIX)
-AC_SUBST(TIME_R_CLOCK_RDTSC)
-AC_SUBST(TIME_R_CLOCK_RDTSCP)
+  AC_SUBST(TIME_R_CLOCK_POSIX)
+  AC_SUBST(TIME_R_CLOCK_RDTSC)
+  AC_SUBST(TIME_R_CLOCK_RDTSCP)
 
-AC_SUBST(TIME_R_STATIC_LIST, ${with_time_r_staticlist})
+  AC_SUBST(TIME_R_STATIC_LIST, ${with_time_r_staticlist})
+
+  if test "${want_timeR_static}" = yes; then
+    AC_DEFINE(TIME_R_STATICTIMERS, 1, [Define this to enable statically defined timers.])
+  fi
+
+  if test "${want_timeR_funtab}" = yes; then
+    AC_DEFINE(TIME_R_FUNTAB, 1, [Define this to enable function table timers.])
+  fi
+
+  if test "${want_timeR_userfunc}" = yes; then
+    AC_DEFINE(TIME_R_USERFUNCTIONS, 1, [Define this to enable user function timers.])
+  fi
+fi
+
+AC_SUBST(HAVE_TIME_R)
+
 
 ## R profiling.
 if test "${want_R_profiling}" = yes; then

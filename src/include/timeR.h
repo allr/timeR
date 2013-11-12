@@ -40,10 +40,6 @@
 # endif
 
 #define TIME_R_ENABLED 1
-// Placeholder macros, do not undef (FIXME!)
-#define TIME_R_RFUNCS
-#define TIME_R_FUNTAB
-#define TIME_R_CSTUFF
 
 #if defined(__GNUC__) || defined(__clang__)
   #define TMR_ALWAYS_INLINE __attribute__((always_inline))
@@ -218,16 +214,22 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 /* convenience macros */
 #  define TimeR_CONCAT(a,b) a ## b
 
+#  ifdef TIME_R_STATICTIMERS
 // note: slightly messy, but allows compile-time removal of disabled timers
 //       and the unconditional version wasn't a C statement either
-#  define BEGIN_TIMER(bin) \
+#    define BEGIN_TIMER(bin) \
     tr_measureptr_t rtm_mptr_##bin; \
     if (TimeR_CONCAT(bin, _State)) \
 	rtm_mptr_##bin = timeR_begin_timer(bin)
 
-#  define END_TIMER(bin) \
+#    define END_TIMER(bin) \
     if (TimeR_CONCAT(bin, _State)) \
 	timeR_end_timer(&rtm_mptr_##bin)
+
+#  else
+#    define BEGIN_TIMER(bin) do {} while (0)
+#    define END_TIMER(bin)   do {} while (0)
+#  endif
 
 #  define MARK_TIMER() \
     tr_measureptr_t rtm_mptr_marker = timeR_mark()
@@ -235,19 +237,39 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
 #  define RELEASE_TIMER() \
     timeR_release(&rtm_mptr_marker)
 
+
 /* timers for functions called via R_FunTab */
-#  define BEGIN_PRIMFUN_TIMER(id) \
+#  ifdef TIME_R_FUNTAB
+
+#    define BEGIN_PRIMFUN_TIMER(id) \
     tr_measureptr_t rtm_mptr_primfun = timeR_begin_timer((id) + TR_StaticBinCount)
 
-#  define END_PRIMFUN_TIMER(id) \
+#    define END_PRIMFUN_TIMER(id) \
     timeR_end_timer(&rtm_mptr_primfun)
 
+#  else
+
+#    define BEGIN_PRIMFUN_TIMER(id) do {} while (0)
+#    define END_PRIMFUN_TIMER(id)   do {} while (0)
+
+#  endif
+
+
 /* timers for functions written in R */
-#  define BEGIN_RFUNC_TIMER(id) \
+#  ifdef TIME_R_USERFUNCTIONS
+
+#    define BEGIN_RFUNC_TIMER(id) \
     tr_measureptr_t rtm_mptr_rfunction = timeR_begin_timer(id)
 
-#  define END_RFUNC_TIMER(id) \
+#    define END_RFUNC_TIMER(id) \
     timeR_end_timer(&rtm_mptr_rfunction)
+
+#  else
+
+#    define BEGIN_RFUNC_TIMER(id) do {} while (0)
+#    define END_RFUNC_TIMER(id)   do {} while (0)
+
+#  endif
 
 #else
 
