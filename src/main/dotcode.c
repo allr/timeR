@@ -1405,18 +1405,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 {
     int Fort = PRIMVAL(op);
 
-#ifdef TIME_R_STATICTIMERS
-    // FIXME: Too many timeR internals exposed here and in the
-    //        other TIME_R_STATICTIMERS blocks
-    tr_measureptr_t rtm_mptr_dotcodefull;
-    if (Fort) {
-	if (TR_dotFortranFull_State)
-	    rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotFortranFull);
-    } else {
-	if (TR_dotCFull_State)
-	    rtm_mptr_dotcodefull = timeR_begin_timer(TR_dotCFull);
-    }
-#endif
+    BEGIN_TIMER_ALTERNATIVES(Fort, TR_dotFortranFull, TR_dotCFull);
 
     void **cargs, **cargs0 = NULL /* -Wall */;
     int dup, naok, na, nargs;
@@ -1717,16 +1706,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 	if (nprotect) UNPROTECT(nprotect);
     }
 
-#ifdef TIME_R_STATICTIMERS
-    tr_measureptr_t rtm_mptr_dotcode;
-    if (Fort) {
-	if (TR_dotFortran_State)
-	    rtm_mptr_dotcode = timeR_begin_timer(TR_dotFortran);
-    } else {
-	if (TR_dotC_State)
-	    rtm_mptr_dotcode = timeR_begin_timer(TR_dotC);
-    }
-#endif
+    BEGIN_TIMER_ALTERNATIVES(Fort, TR_dotFortran, TR_dotC);
 
     switch (nargs) {
     case 0:
@@ -2323,10 +2303,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 	errorcall(call, _("too many arguments, sorry"));
     }
 
-#ifdef TIME_R_STATICTIMERS
-    if (TR_dotFortran_State || TR_dotC_State)
-	timeR_end_timer(&rtm_mptr_dotcode);
-#endif
+    END_TIMER_ALTERNATIVES(Fort, TR_dotFortran, TR_dotC);
 
     if (dup) {
 
@@ -2522,10 +2499,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     UNPROTECT(1);
     vmaxset(vmax);
 
-#ifdef TIME_R_STATICTIMERS
-    if (TR_dotFortranFull_State || TR_dotCFull_State)
-	timeR_end_timer(&rtm_mptr_dotcodefull);
-#endif
+    END_TIMER_ALTERNATIVES(Fort, TR_dotFortranFull, TR_dotCFull);
 
     return ans;
 }

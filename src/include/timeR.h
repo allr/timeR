@@ -225,6 +225,23 @@ static inline void timeR_report_external(int /*NativeSymbolType*/ type,
     if (TimeR_CONCAT(bin, _State)) \
 	timeR_end_timer(&rtm_mptr_##bin)
 
+#    define BEGIN_TIMER_ALTERNATIVES(cond, bin_true, bin_false)	\
+    tr_measureptr_t rtm_mptr_##bin_true;			\
+    if (cond) {							\
+	if (TimeR_CONCAT(bin_true, _State))			\
+	    rtm_mptr_##bin_true = timeR_begin_timer(bin_true);	\
+    } else {							\
+	if (TimeR_CONCAT(bin_false, _State))			\
+	    rtm_mptr_##bin_true = timeR_begin_timer(bin_false); \
+    }
+
+#    define END_TIMER_ALTERNATIVES(cond, bin_true, bin_false)	\
+    if (cond && TimeR_CONCAT(bin_true, _State)) {		\
+	timeR_end_timer(&rtm_mptr_##bin_true);			\
+    } else if (!cond && TimeR_CONCAT(bin_false, _State)) {	\
+	timeR_end_timer(&rtm_mptr_##bin_true);			\
+    }
+
 #  else
 #    define BEGIN_TIMER(bin) do {} while (0)
 #    define END_TIMER(bin)   do {} while (0)
