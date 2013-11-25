@@ -180,7 +180,6 @@ resolveNativeRoutine(SEXP args, DL_FUNC *fun,
     SEXP op;
     const char *p; char *q;
     DllReference dll;
-    buf[0] = 0; // FIXME: Ugly, quick-hack-port from old timeR
     /* This is used as shorthand for 'all' in R_FindSymbol, but
        should never be supplied */
     strcpy(dll.DLLname, ""); 
@@ -209,10 +208,7 @@ resolveNativeRoutine(SEXP args, DL_FUNC *fun,
     }
 
     /* We were given a symbol (or an address), so we are done. */
-    if (*fun) {
-	timeR_report_external(symbol->type, buf, dll.DLLname, fun);
-	return args;
-    }
+    if (*fun) return args;
 
     if (dll.type == FILENAME && !strlen(dll.DLLname))
 	errorcall(call, _("PACKAGE = \"\" is invalid"));
@@ -253,10 +249,7 @@ resolveNativeRoutine(SEXP args, DL_FUNC *fun,
 	/* no PACKAGE= arg, so see if we can identify a DLL
 	   from the namespace defining the function */
 	*fun = R_FindNativeSymbolFromDLL(buf, &dll, symbol, env2);
-	if (*fun) {
-	    timeR_report_external(symbol->type, buf, dll.DLLname, fun);
-	    return args;
-	}
+	if (*fun) return args;
 	errorcall(call, "\"%s\" not resolved from current namespace (%s)", 
 		  buf, ns);
     }
@@ -267,10 +260,7 @@ resolveNativeRoutine(SEXP args, DL_FUNC *fun,
     */
 
     *fun = R_FindSymbol(buf, dll.DLLname, symbol);
-    if (*fun) {
-	timeR_report_external(symbol->type, buf, dll.DLLname, fun);
-	return args;
-    }
+    if (*fun) return args;
 
     /* so we've failed and bail out */
     if(strlen(dll.DLLname)) {
