@@ -51,6 +51,7 @@
 
 /* timing bin: accumulates measured times */
 typedef struct {
+    char              *prefix;        /* prefix for the name */
     char              *name;          /* user-visible name in dump */
     timeR_t            sum_self;      /* time accumulated in just this bin */
     timeR_t            sum_total;     /* time accumulated including "called" bins */
@@ -166,6 +167,8 @@ static inline void timeR_end_timer(const tr_measureptr_t *mptr) {
     }
 }
 
+tr_measureptr_t timeR_begin_external(char *name, void *addr);
+
 /* generate a marker for the current position of the measurement stack */
 /* to avoid a branch this marker points to the next free measurement   */
 static inline tr_measureptr_t timeR_mark(void) {
@@ -239,6 +242,22 @@ extern int   timeR_reduced_output;
     timeR_release(&rtm_mptr_marker)
 
 
+/* timers for external functions */
+#  ifdef TIME_R_EXTFUNC
+
+#    define BEGIN_EXTERNAL_TIMER(fname, faddr)			\
+    tr_measureptr_t rtm_mptr_extfunc =				\
+	timeR_begin_external(fname, faddr);
+
+#    define END_EXTERNAL_TIMER()		\
+    timeR_end_timer(&rtm_mptr_extfunc);
+
+#  else
+#    define BEGIN_EXTERNAL_TIMER(n,a) do {} while (0)
+#    define END_EXTERNAL_TIMER()      do {} while (0)
+#  endif
+
+
 /* timers for functions called via R_FunTab */
 #  ifdef TIME_R_FUNTAB
 
@@ -309,6 +328,8 @@ static inline void timeR_mark_bcode(unsigned int bin_id) {}
 #  define END_PRIMFUN_TIMER(id)   do {} while (0)
 #  define BEGIN_RFUNC_TIMER(id)   do {} while (0)
 #  define END_RFUNC_TIMER(id)     do {} while (0)
+#  define BEGIN_EXTERNAL_TIMER(n,a) do {} while (0)
+#  define END_EXTERNAL_TIMER()    do {} while (0)
 
 #endif // HAVE_TIME_R
 

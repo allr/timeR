@@ -35,4 +35,7 @@
 /* number of bins allocated at once when all existing are in use */
 #define TIME_R_REALLOC_BINS 100
 
+/* initial/increment size of external function map */
+#define TIME_R_EXTFUNC_MAP_STEP 100
+
 #endif

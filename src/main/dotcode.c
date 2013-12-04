@@ -527,12 +527,16 @@ SEXP attribute_hidden do_External(SEXP call, SEXP op, SEXP args, SEXP env)
     if (PRIMVAL(op) == 1) {
 	R_ExternalRoutine2 fun = (R_ExternalRoutine2) ofun;
 	BEGIN_TIMER(TR_dotExternal);
+	BEGIN_EXTERNAL_TIMER(buf, ofun);
 	retval = fun(call, op, args, env);
+	END_EXTERNAL_TIMER();
 	END_TIMER(TR_dotExternal);
     } else {
 	R_ExternalRoutine fun = (R_ExternalRoutine) ofun;
 	BEGIN_TIMER(TR_dotExternal);
+	BEGIN_EXTERNAL_TIMER(buf, ofun);
 	retval = fun(args);
+	END_EXTERNAL_TIMER();
 	END_TIMER(TR_dotExternal);
     }
     vmaxset(vmax);
@@ -582,6 +586,7 @@ SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
     retval = R_NilValue;	/* -Wall */
     fun = (VarFun) ofun;
     BEGIN_TIMER(TR_dotCall);
+    BEGIN_EXTERNAL_TIMER(buf, ofun);
     switch (nargs) {
     case 0:
 	retval = (SEXP)ofun();
@@ -1235,6 +1240,7 @@ SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
     default:
 	errorcall(call, _("too many arguments, sorry"));
     }
+    END_EXTERNAL_TIMER();
     END_TIMER(TR_dotCall);
     vmaxset(vmax);
     END_TIMER(TR_dotCallFull);
@@ -1697,6 +1703,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
     }
 
     BEGIN_TIMER_ALTERNATIVES(Fort, TR_dotFortran, TR_dotC);
+    BEGIN_EXTERNAL_TIMER(symName, ofun);
 
     switch (nargs) {
     case 0:
@@ -2293,6 +2300,7 @@ SEXP attribute_hidden do_dotCode(SEXP call, SEXP op, SEXP args, SEXP env)
 	errorcall(call, _("too many arguments, sorry"));
     }
 
+    END_EXTERNAL_TIMER();
     END_TIMER_ALTERNATIVES(Fort, TR_dotFortran, TR_dotC);
 
     if (dup) {

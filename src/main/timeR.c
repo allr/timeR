@@ -48,10 +48,12 @@ static char *bin_names[] = {
     /* keep it in one entry per line format and do not move the markers     */
     /* MARKER:START */
     // internal
-    "Startup",
-    "UserFuncFallback",
     "OverheadTest1",    /* MARKER:ALWAYS */
     "OverheadTest2",    /* MARKER:ALWAYS */
+    "HashOverhead",
+    // first timer in output is Startup
+    "Startup",
+    "UserFuncFallback",
 
     // memory.c
     "cons",
@@ -147,6 +149,9 @@ _Static_Assert(sizeof(bin_names)/sizeof(bin_names[0]) == TR_StaticBinCount,
                "Number of tr_bin_id_t entries does not match bin_names array!");
 */
 
+
+/*** internal-only data structures ***/
+
 /* fallback name if string duplication fails */
 static char *userfunc_unknown_str = "unknown_user_function";
 
@@ -164,6 +169,18 @@ static unsigned int bin_count;
 static unsigned int first_userfn_idx;
 tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
+
+/* external function timing */
+typedef struct {
+    void *addr; // FIXME: Technically incorrect, should use a function ptr
+    unsigned int bin_id;
+} tr_extfunc_entry_t;
+
+static tr_extfunc_entry_t *extfunc_map;
+static unsigned int extfunc_map_length;
+static unsigned int extfunc_map_entries;
+
+
 /* additional hardcoded timers */
 static tr_measureptr_t startup_mptr;
 static timeR_t         start_time, end_time;
@@ -177,12 +194,28 @@ static int compare_binnames(const void *a_void, const void *b_void) {
     const tr_bin_t * const *a = a_void;
     const tr_bin_t * const *b = b_void;
 
-    return strcmp((*a)->name, (*b)->name);
+    int res = 0;
+
+    if ((*a)->prefix != NULL && (*b)->prefix != NULL) {
+	res = strcmp((*a)->prefix, (*b)->prefix);
+    } else if ((*a)->prefix == NULL && (*b)->prefix != NULL) {
+	return -1;
+    } else if ((*a)->prefix != NULL && (*b)->prefix == NULL) {
+	return 1;
+    }
+
+    if (res == 0)
+	res = strcmp((*a)->name, (*b)->name);
+
+    return res;
 }
 
 static void timeR_print_bin(FILE *fd, tr_bin_t *bin) {
     if (timeR_reduced_output && bin->starts == 0)
 	return;
+
+    if (bin->prefix != NULL)
+	fprintf(fd, "%s:", bin->prefix);
 
     fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
             bin->name,
@@ -316,12 +349,7 @@ static void timeR_dump(FILE *fd) {
 #endif
 
 #ifdef TIME_R_STATICTIMERS
-    for (unsigned int i = 0; i < TR_StaticBinCount; i++) {
-	/* skip overhead timers */
-	if (i == TR_OverheadTest1 ||
-	    i == TR_OverheadTest2)
-	    continue;
-
+    for (unsigned int i = TR_Startup; i < TR_StaticBinCount; i++) {
 	/* skip disabled timers */
 	if (!timer_enables[i])
 	    continue;
@@ -330,13 +358,16 @@ static void timeR_dump(FILE *fd) {
     }
 #endif
 
+#ifdef TIME_R_EXTFUNC
+    timeR_print_bin(fd, &timeR_bins[TR_HashOverhead]);
+#endif
+
 #ifdef TIME_R_FUNTAB
     for (unsigned int i = TR_StaticBinCount; i < first_userfn_idx; i++)
 	timeR_print_bin(fd, &timeR_bins[i]);
 #endif
 
-
-#ifdef TIME_R_USERFUNCTIONS
+#if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
     /* print user function timers */
     for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
 	tr_bin_t *bin = binpointers[i];
@@ -374,13 +405,12 @@ void timeR_init_early(void) {
     timeR_next_mindex = 1; // the very first timer is just a canary
 
     /* initialize static bins */
-    timeR_bins = calloc(TR_StaticBinCount + TIME_R_INITIAL_EMPTY_BINS, sizeof(tr_bin_t));
+    bin_count = TR_StaticBinCount + TIME_R_INITIAL_EMPTY_BINS;
+    timeR_bins = calloc(bin_count, sizeof(tr_bin_t));
     if (timeR_bins == NULL) {
 	fprintf(stderr, "ERROR: Failed to allocate the timing bins!\n");
 	exit(2);
     }
-
-    bin_count = TR_StaticBinCount + TIME_R_INITIAL_EMPTY_BINS;
 
     for (i = 0; i < next_bin; i++) {
 	timeR_bins[i].name = bin_names[i];
@@ -389,27 +419,36 @@ void timeR_init_early(void) {
     /* add bins for the .Internal/.Primitive functions */
     /* this happens even when function table timers are disabled */
     /* to simplify the rest of the code                          */
-    char fnname[1024];
-
     i = 0;
     while (R_FunTab[i].name != NULL) {
 	// FIXME: BEGIN_PRIMFUN_TIMER and the dump code assume this
 	//        block of fns starts at TR_StaticBinCount
 	unsigned int bin_id = timeR_add_userfn_bin();
 
+	timeR_name_bin(bin_id, R_FunTab[i].name);
+
 	if ((R_FunTab[i].eval / 10) % 10 == 1) {
 	    // .Internal
-	    snprintf(fnname, sizeof(fnname), "<.Internal>:%s", R_FunTab[i].name);
+	    timeR_bins[bin_id].prefix = "<.Internal>";
 	} else {
 	    // .Primitive
-	    snprintf(fnname, sizeof(fnname), "<.Primitive>:%s", R_FunTab[i].name);
+	    timeR_bins[bin_id].prefix = "<.Primitive>";
 	}
-	timeR_name_bin(bin_id, fnname);
 
 	i++;
     }
 
     first_userfn_idx = i + TR_StaticBinCount;
+
+    /* allocate external function map */
+    extfunc_map_length  = TIME_R_EXTFUNC_MAP_STEP;
+    extfunc_map_entries = 0;
+
+    extfunc_map = calloc(extfunc_map_length, sizeof(tr_extfunc_entry_t));
+    if (extfunc_map == NULL) {
+	fprintf(stderr, "ERROR: Failed to allocate memory for external function map!\n");
+	exit(2);
+    }
 
     /* run an overhead test with just a single iteration */
     BEGIN_TIMER(TR_OverheadTest1);
@@ -583,4 +622,111 @@ void timeR_dump_timer_stack(void) {
 	    cur_mblock = timeR_measureblocks[mbidx];
 	}
     }
+}
+
+
+/*** external function timing ***/
+
+/* adapted version of djbhash */
+static unsigned int hash_address(const void *addr) {
+    unsigned int hash = 5381;
+    unsigned int i    = 0;
+    char data[sizeof(addr)];
+
+    memcpy(data, &addr, sizeof(addr));
+    for (i = 0; i < sizeof(addr); i++) {
+	hash = ((hash << 5) + hash) + data[i];
+    }
+
+    return hash;
+}
+
+/* look up bin id for external function in our map, return 0 if not found */
+static unsigned int lookup_extfunc(void *addr) {
+    unsigned int hash = hash_address(addr);
+    unsigned int modhash = hash % extfunc_map_length;
+
+    if (extfunc_map[modhash].addr == addr) {
+	/* found entry in map */
+	return extfunc_map[modhash].bin_id;
+    }
+
+    return 0;
+}
+
+static unsigned int lookupadd_extfunc(char *name, void *addr);
+
+/* add bin for external function to our map */
+static unsigned int add_extfunc(char *name, void *addr) {
+    unsigned int hash = hash_address(addr);
+    unsigned int modhash = hash % extfunc_map_length;
+
+    if (extfunc_map[modhash].addr == NULL) {
+	/* did not find an entry, but an empty slot */
+	unsigned int bin_id = timeR_add_userfn_bin();
+	timeR_name_bin(bin_id, name);
+	timeR_bins[bin_id].prefix = "<ExternalCode>";
+
+	extfunc_map[modhash].addr   = addr;
+	extfunc_map[modhash].bin_id = bin_id;
+	extfunc_map_entries++;
+
+	return bin_id;
+    }
+
+    /* found a collision */
+    // Rebuild hash table with larger size and retry
+    // FIXME: There are better algorithms for this
+    tr_extfunc_entry_t *newmap;
+    unsigned int newlength = extfunc_map_length + TIME_R_EXTFUNC_MAP_STEP;
+
+ retry:
+    newmap = calloc(newlength, sizeof(tr_extfunc_entry_t));
+    if (newmap == NULL) {
+	abort();
+    }
+
+    for (unsigned int i = 0; i < extfunc_map_length; i++) {
+	if (extfunc_map[i].addr != NULL) {
+	    unsigned int newhash = hash_address(extfunc_map[i].addr) % newlength;
+
+	    if (newmap[newhash].addr != NULL) {
+		/* collision on rehashing */
+		free(newmap);
+		newlength += TIME_R_EXTFUNC_MAP_STEP;
+		goto retry;
+	    }
+
+	    newmap[newhash].addr   = extfunc_map[i].addr;
+	    newmap[newhash].bin_id = extfunc_map[i].bin_id;
+	}
+    }
+
+    /* switch to new map */
+    free(extfunc_map);
+    extfunc_map        = newmap;
+    extfunc_map_length = newlength;
+
+    /* use a recursive call for the actual insertion */
+    return lookupadd_extfunc(name, addr);
+}
+
+/* look up bin id for external function in our map, add if not found */
+static unsigned int lookupadd_extfunc(char *name, void *addr) {
+    unsigned int bin_id = lookup_extfunc(addr);
+
+    if (bin_id != 0)
+	return bin_id;
+    else
+	return add_extfunc(name, addr);
+}
+
+tr_measureptr_t timeR_begin_external(char *name, void *addr) { // FIXME: should use DL_FUNC
+    /* look up address in the map */
+    BEGIN_TIMER(TR_HashOverhead);
+    // TODO: Seperate overhead measurement, subtracted from total of other timers?
+    unsigned int bin_id = lookupadd_extfunc(name, addr);
+    END_TIMER(TR_HashOverhead);
+
+    return timeR_begin_timer(bin_id);
 }

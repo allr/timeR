@@ -246,6 +246,19 @@ fi],
 [want_timeR_userfunc=yes])
 AM_CONDITIONAL(WANT_TIME_R_USERFUNC, [test "x${want_timeR_userfunc}" = xyes])
 
+## Allow the user to enable or disable external function timers
+AC_ARG_ENABLE([timeR-external],
+[AS_HELP_STRING([--enable-timeR-external],[enable external function timeR timers @<:@no@:>@])],
+[if test "${enableval}" = no; then
+  want_timeR_extfunc=no
+elif test "${enableval}" = yes; then
+  want_timeR_extfunc=yes
+else
+  want_timeR_extfunc=no
+fi],
+[want_timeR_extfunc=no])
+AM_CONDITIONAL(WANT_TIME_R_EXTFUNC, [test "x${want_timeR_extfunc}" = xyes])
+
 
 ## Allow the user to specify support for R profiling.
 AC_ARG_ENABLE([R-profiling],
@@ -2329,6 +2342,10 @@ if test "${want_timeR}" = yes; then
 
   if test "${want_timeR_userfunc}" = yes; then
     AC_DEFINE(TIME_R_USERFUNCTIONS, 1, [Define this to enable user function timers.])
+  fi
+
+  if test "${want_timeR_extfunc}" = yes; then
+    AC_DEFINE(TIME_R_EXTFUNC, 1, [Define this to enable external function timers.])
   fi
 fi
 
