@@ -232,29 +232,30 @@ static void timeR_dump(FILE *fd) {
     time_t now;
 
     if (getcwd(strbuf, sizeof(strbuf)) != NULL) {
-	fprintf(fd, "Workdir %s\n", strbuf);
+	fprintf(fd, "Workdir\t%s\n", strbuf);
     }
 
     now = time(NULL);
-    fprintf(fd, "TraceDate %s", ctime(&now));
+    fprintf(fd, "TraceDate\t%s", ctime(&now));
 
     getrusage(RUSAGE_SELF, &my_rusage);
-    fprintf(fd, "RusageMaxResidentMemorySet %ld\n", my_rusage.ru_maxrss);
-    fprintf(fd, "RusageSharedMemSize %ld\n", my_rusage.ru_ixrss);
-    fprintf(fd, "RusageUnsharedDataSize %ld\n", my_rusage.ru_idrss);
-    fprintf(fd, "RusagePageReclaims %ld\n", my_rusage.ru_minflt);
-    fprintf(fd, "RusagePageFaults %ld\n", my_rusage.ru_majflt);
-    fprintf(fd, "RusageSwaps %ld\n", my_rusage.ru_nswap);
-    fprintf(fd, "RusageBlockInputOps %ld\n", my_rusage.ru_inblock);
-    fprintf(fd, "RusageBlockOutputOps %ld\n", my_rusage.ru_oublock);
-    fprintf(fd, "RusageIPCSends %ld\n", my_rusage.ru_msgsnd);
-    fprintf(fd, "RusageIPCRecv %ld\n", my_rusage.ru_msgrcv);
-    fprintf(fd, "RusageSignalsRcvd %ld\n", my_rusage.ru_nsignals);
-    fprintf(fd, "RusageVolnContextSwitches %ld\n", my_rusage.ru_nvcsw);
-    fprintf(fd, "RusageInvolnContextSwitches %ld\n", my_rusage.ru_nivcsw);
-    fprintf(fd, "TimerUnit: %s\n", TIME_R_UNIT);
+    fprintf(fd, "RusageMaxResidentMemorySet\t%ld\n", my_rusage.ru_maxrss);
+    fprintf(fd, "RusageSharedMemSize\t%ld\n", my_rusage.ru_ixrss);
+    fprintf(fd, "RusageUnsharedDataSize\t%ld\n", my_rusage.ru_idrss);
+    fprintf(fd, "RusagePageReclaims\t%ld\n", my_rusage.ru_minflt);
+    fprintf(fd, "RusagePageFaults\t%ld\n", my_rusage.ru_majflt);
+    fprintf(fd, "RusageSwaps\t%ld\n", my_rusage.ru_nswap);
+    fprintf(fd, "RusageBlockInputOps\t%ld\n", my_rusage.ru_inblock);
+    fprintf(fd, "RusageBlockOutputOps\t%ld\n", my_rusage.ru_oublock);
+    fprintf(fd, "RusageIPCSends\t%ld\n", my_rusage.ru_msgsnd);
+    fprintf(fd, "RusageIPCRecv\t%ld\n", my_rusage.ru_msgrcv);
+    fprintf(fd, "RusageSignalsRcvd\t%ld\n", my_rusage.ru_nsignals);
+    fprintf(fd, "RusageVolnContextSwitches\t%ld\n", my_rusage.ru_nvcsw);
+    fprintf(fd, "RusageInvolnContextSwitches\t%ld\n", my_rusage.ru_nivcsw);
+    fprintf(fd, "TimerUnit\t%s\n", TIME_R_UNIT);
 
-    fprintf(fd, "OverheadEstimates %.3f %.3f\n",
+    fprintf(fd, "#!LABEL\tsmall\tmedium\n");
+    fprintf(fd, "OverheadEstimates\t%.3f\t%.3f\n",
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
     fprintf(fd, "TotalRuntime\t%ld\n", (unsigned long)(end_time - start_time));
@@ -284,6 +285,8 @@ static void timeR_dump(FILE *fd) {
 
 	i++;
     }
+
+    fprintf(fd, "#!LABEL\tself\ttotal\tstarts\taborts\n");
 
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
@@ -340,7 +343,7 @@ static void timeR_dump(FILE *fd) {
 #endif // TIME_R_USERFUNCTIONS
 
     /* print static and function table timers */
-    fprintf(fd, "# name\tself\ttotal\tstarts\taborts\thas_bcode\n");
+    fprintf(fd, "#!LABEL\tself\ttotal\tstarts\taborts\thas_bcode\n");
 
 #if !defined(TIME_R_STATICTIMERS) && defined(TIME_R_USERFUNCTIONS)
     // ensure the fallback timer is printed if static timers are off
