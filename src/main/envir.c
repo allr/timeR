@@ -1163,7 +1163,9 @@ findVar1(SEXP symbol, SEXP rho, SEXPTYPE mode, int inherits)
 	    }
 	    if (TYPEOF(vl) == PROMSXP) {
 		PROTECT(vl);
+		BEGIN_TIMER(TR_SymLookupEval);
 		vl = eval(vl, rho);
+		END_TIMER(TR_SymLookupEval);
 		UNPROTECT(1);
 	    }
 	    if (TYPEOF(vl) == mode) {
@@ -1215,7 +1217,9 @@ findVar1mode(SEXP symbol, SEXP rho, SEXPTYPE mode, int inherits,
 	    }
 	    if (TYPEOF(vl) == PROMSXP) {
 		PROTECT(vl);
+		BEGIN_TIMER(TR_SymLookupEval);
 		vl = eval(vl, rho);
+		END_TIMER(TR_SymLookupEval);
 		UNPROTECT(1);
 	    }
 	    tl = TYPEOF(vl);
