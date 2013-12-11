@@ -130,10 +130,7 @@ static char *bin_names[] = {
     "doSubset3",
 
     // Rsock.c
-    "inSockRead",
-    "inSockWrite",
-    "inSockOpen",
-    "inSockConnect",
+    "Rsock",
 
     // sys-std.c
     "Sleep",
