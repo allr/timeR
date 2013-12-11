@@ -402,6 +402,8 @@ extern SEXP fixup_NaRm(SEXP args); /* summary.c */
 /* all, any */
 SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
 {
+    BEGIN_TIMER(TR_doLogic3);
+
     SEXP ans, s, t, call2;
     int narm, has_na = 0;
     /* initialize for behavior on empty vector
@@ -416,6 +418,7 @@ SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
 
     if (DispatchGroup("Summary", call2, op, args, env, &ans)) {
 	UNPROTECT(2);
+	END_TIMER(TR_doLogic3);
 	return(ans);
     }
 
@@ -450,6 +453,7 @@ SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
         } else has_na = 1;
     }
     UNPROTECT(2);
+    END_TIMER(TR_doLogic3);
     return has_na ? ScalarLogical(NA_LOGICAL) : ScalarLogical(val);
 }
 #undef _OP_ALL

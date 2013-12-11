@@ -110,6 +110,7 @@ static char *bin_names[] = {
     // logic.c
     "doLogic",
     "doLogic2",
+    "doLogic3",
 
     // main.c
     "Repl",
