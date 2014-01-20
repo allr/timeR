@@ -31,6 +31,7 @@
 #include <sys/resource.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -209,8 +210,8 @@ static int compare_binnames(const void *a_void, const void *b_void) {
     return res;
 }
 
-static void timeR_print_bin(FILE *fd, tr_bin_t *bin) {
-    if (timeR_reduced_output && bin->starts == 0)
+static void timeR_print_bin(FILE *fd, tr_bin_t *bin, bool force) {
+    if (timeR_reduced_output && bin->starts == 0 && !force)
 	return;
 
     if (bin->prefix != NULL)
@@ -347,7 +348,7 @@ static void timeR_dump(FILE *fd) {
 
 #if !defined(TIME_R_STATICTIMERS) && defined(TIME_R_USERFUNCTIONS)
     // ensure the fallback timer is printed if static timers are off
-    timeR_print_bin(fd, &timeR_bins[TR_UserFuncFallback]);
+    timeR_print_bin(fd, &timeR_bins[TR_UserFuncFallback], true);
 #endif
 
 #ifdef TIME_R_STATICTIMERS
@@ -356,17 +357,17 @@ static void timeR_dump(FILE *fd) {
 	if (!timer_enables[i])
 	    continue;
 
-	timeR_print_bin(fd, &timeR_bins[i]);
+	timeR_print_bin(fd, &timeR_bins[i], true);
     }
 #endif
 
 #ifdef TIME_R_EXTFUNC
-    timeR_print_bin(fd, &timeR_bins[TR_HashOverhead]);
+    timeR_print_bin(fd, &timeR_bins[TR_HashOverhead], false);
 #endif
 
 #ifdef TIME_R_FUNTAB
     for (unsigned int i = TR_StaticBinCount; i < first_userfn_idx; i++)
-	timeR_print_bin(fd, &timeR_bins[i]);
+	timeR_print_bin(fd, &timeR_bins[i], false);
 #endif
 
 #if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
@@ -376,7 +377,7 @@ static void timeR_dump(FILE *fd) {
 
 	if (bin->name[0] != 0)
 	    /* print only if it has a name */
-	    timeR_print_bin(fd, bin);
+	    timeR_print_bin(fd, bin, false);
     }
 
     free(binpointers);
