@@ -255,7 +255,8 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 	    }
 
 	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
-                    strncmp(*av, "--time", 6) == 0) {
+		    strncmp(*av, "--timeR-raw",  11) == 0 ||
+		    strncmp(*av, "--time", 6) == 0) {
 		p = strchr(*av, '=');
 		if (p == NULL) {
 		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
@@ -269,6 +270,12 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		if(timeR_output_file != NULL)
 		    free(timeR_output_file);
 		timeR_output_file = strdup(p);
+
+		if (strncmp(*av, "--timeR-raw", 11) == 0)
+		    timeR_output_raw = 1;
+		else
+		    timeR_output_raw = 0;
+
 	    }
 #endif
 	    else { /* unknown -option */

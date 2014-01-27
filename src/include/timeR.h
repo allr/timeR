@@ -196,6 +196,7 @@ static inline const char *timeR_get_bin_name(unsigned int bin_id) {
 }
 
 extern char *timeR_output_file;
+extern int   timeR_output_raw;
 extern int   timeR_reduced_output;
 
 /* convenience macros */

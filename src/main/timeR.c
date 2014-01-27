@@ -186,6 +186,7 @@ static tr_measureptr_t startup_mptr;
 static timeR_t         start_time, end_time;
 
 char *timeR_output_file;
+int   timeR_output_raw     = 0;
 int   timeR_reduced_output = 1;
 
 /*** internal functions ***/
@@ -210,20 +211,181 @@ static int compare_binnames(const void *a_void, const void *b_void) {
     return res;
 }
 
-static void timeR_print_bin(FILE *fd, tr_bin_t *bin, bool force) {
+static int compare_selftime_desc(const void *a_void, const void *b_void) {
+    const tr_bin_t * const *a = a_void;
+    const tr_bin_t * const *b = b_void;
+
+    if ((*a)->sum_self < (*b)->sum_self)
+	return 1;
+    else if ((*a)->sum_self > (*b)->sum_self)
+	return -1;
+    else
+	return 0;
+}
+
+/* merge duplicated bins by name */
+static void merge_dupes(tr_bin_t **binpointers, unsigned int count) {
+    qsort(binpointers, count, sizeof(tr_bin_t *),
+	  compare_binnames);
+
+    tr_bin_t *prev_bin = binpointers[0];
+
+    for (unsigned int i = 1; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *cur_bin = binpointers[i];
+
+	if (!compare_binnames(&prev_bin, &cur_bin)) {
+	    // same name, merge and disable the current one
+	    prev_bin->sum_self  += cur_bin->sum_self;
+	    prev_bin->sum_total += cur_bin->sum_total;
+	    prev_bin->starts    += cur_bin->starts;
+	    prev_bin->aborts    += cur_bin->aborts;
+	    prev_bin->bcode     |= cur_bin->bcode;
+
+	    cur_bin->name[0]   = 0;
+	    cur_bin->sum_self  = 0;
+	    cur_bin->sum_total = 0;
+	    cur_bin->starts    = 0;
+	} else {
+	    prev_bin = cur_bin;
+	}
+    }
+}
+
+static void timeR_print_bin(FILE *fd, tr_bin_t *bin, bool force,
+			    timeR_t all_self) {
     if (timeR_reduced_output && bin->starts == 0 && !force)
 	return;
 
     if (bin->prefix != NULL)
 	fprintf(fd, "%s:", bin->prefix);
 
-    fprintf(fd, "%s\t" "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
-            bin->name,
+    fprintf(fd, "%s\t", bin->name);
+
+    if (all_self != 0)
+	fprintf(fd, "%.2f%%\t", (double)bin->sum_self / all_self * 100.0);
+
+    fprintf(fd, "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
             bin->sum_self,
             bin->sum_total,
             bin->starts,
             bin->aborts,
             bin->bcode);
+}
+
+static void timeR_dump_raw(FILE *fd) {
+#ifdef TIME_R_USERFUNCTIONS
+    /* sort the user function timers by name */
+    tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
+    if (binpointers == NULL)
+	abort();
+
+    // use this opportunity to calculate the user function sum too
+    timeR_t            uself_sum  = 0, utotal_sum = 0;
+    unsigned long long ustart_sum = 0, uabort_sum = 0;
+
+    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *bin = &timeR_bins[i + first_userfn_idx];
+
+	binpointers[i] = bin;
+	uself_sum     += bin->sum_self;
+	utotal_sum    += bin->sum_total;
+	ustart_sum    += bin->starts;
+	uabort_sum    += bin->aborts;
+    }
+
+    fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
+	    uself_sum, utotal_sum,
+	    ustart_sum, uabort_sum);
+
+    merge_dupes(binpointers, next_bin - first_userfn_idx);
+#endif // TIME_R_USERFUNCTIONS
+
+    /* print static and function table timers */
+    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\thas_bcode\n");
+
+#if !defined(TIME_R_STATICTIMERS) && defined(TIME_R_USERFUNCTIONS)
+    // ensure the fallback timer is printed if static timers are off
+    timeR_print_bin(fd, &timeR_bins[TR_UserFuncFallback], true, 0);
+#endif
+
+#ifdef TIME_R_STATICTIMERS
+    for (unsigned int i = TR_Startup; i < TR_StaticBinCount; i++) {
+	/* skip disabled timers */
+	if (!timer_enables[i])
+	    continue;
+
+	timeR_print_bin(fd, &timeR_bins[i], true, 0);
+    }
+#endif
+
+#ifdef TIME_R_EXTFUNC
+    timeR_print_bin(fd, &timeR_bins[TR_HashOverhead], false, 0);
+#endif
+
+#ifdef TIME_R_FUNTAB
+    for (unsigned int i = TR_StaticBinCount; i < first_userfn_idx; i++)
+	timeR_print_bin(fd, &timeR_bins[i], false, 0);
+#endif
+
+#if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
+    /* print user function timers */
+    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *bin = binpointers[i];
+
+	if (bin->name[0] != 0)
+	    /* print only if it has a name */
+	    timeR_print_bin(fd, bin, false, 0);
+    }
+
+    free(binpointers);
+#endif
+}
+
+static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
+#ifdef TIME_R_USERFUNCTIONS
+    /* calculate user function sum */
+    timeR_t            uself_sum  = 0, utotal_sum = 0;
+    unsigned long long ustart_sum = 0, uabort_sum = 0;
+
+    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
+	tr_bin_t *bin = &timeR_bins[i + first_userfn_idx];
+
+	uself_sum  += bin->sum_self;
+	utotal_sum += bin->sum_total;
+	ustart_sum += bin->starts;
+	uabort_sum += bin->aborts;
+    }
+
+    fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
+	    uself_sum,  utotal_sum,
+	    ustart_sum, uabort_sum);
+#endif
+
+    /* sort timers by name to remove duplicates */
+    tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * next_bin);
+    if (binpointers == NULL)
+	abort();
+
+    for (unsigned int i = 0; i < next_bin; i++)
+	binpointers[i] = timeR_bins + i;
+
+    merge_dupes(binpointers, next_bin);
+
+    /* now sort by self time, descending */
+    qsort(binpointers, next_bin, sizeof(tr_bin_t *),
+	  compare_selftime_desc);
+
+    /* print all timers */
+    fprintf(fd, "# --- individual results\tself_percentage\tself\ttotal\tcalls\taborts\thas_bcode\n");
+
+    for (unsigned int i = 0; i < next_bin; i++) {
+	tr_bin_t *bin = binpointers[i];
+
+	if (bin->name[0] != 0)
+	    timeR_print_bin(fd, bin, false, total_runtime);
+    }
+
+    free(binpointers);
 }
 
 static void timeR_dump(FILE *fd) {
@@ -287,7 +449,7 @@ static void timeR_dump(FILE *fd) {
 	i++;
     }
 
-    fprintf(fd, "#!LABEL\tself\ttotal\tstarts\taborts\n");
+    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
 	    bself_sum, btotal_sum, bstart_sum, babort_sum);
@@ -295,93 +457,10 @@ static void timeR_dump(FILE *fd) {
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
 #endif
 
-#ifdef TIME_R_USERFUNCTIONS
-    /* sort the user function timers by name */
-    tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
-    if (binpointers == NULL)
-	abort();
-
-    // use this opportunity to calculate the user function sum too
-    timeR_t            uself_sum  = 0, utotal_sum = 0;
-    unsigned long long ustart_sum = 0, uabort_sum = 0;
-
-    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
-	tr_bin_t *bin = &timeR_bins[i + first_userfn_idx];
-
-	binpointers[i] = bin;
-	uself_sum     += bin->sum_self;
-	utotal_sum    += bin->sum_total;
-	ustart_sum    += bin->starts;
-	uabort_sum    += bin->aborts;
-    }
-
-    fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
-	    uself_sum, utotal_sum,
-	    ustart_sum, uabort_sum);
-
-    qsort(binpointers, next_bin - first_userfn_idx, sizeof(tr_bin_t *),
-	  compare_binnames);
-
-    /* merge duplicates */
-    tr_bin_t *prev_bin = binpointers[0];
-
-    for (unsigned int i = 1; i < next_bin - first_userfn_idx; i++) {
-	tr_bin_t *cur_bin = binpointers[i];
-
-	if (!strcmp(prev_bin->name, cur_bin->name)) {
-	    // same name, merge and disable the current one
-	    prev_bin->sum_self  += cur_bin->sum_self;
-	    prev_bin->sum_total += cur_bin->sum_total;
-	    prev_bin->starts    += cur_bin->starts;
-	    prev_bin->aborts    += cur_bin->aborts;
-	    prev_bin->bcode     |= cur_bin->bcode;
-
-	    cur_bin->name[0] = 0;
-	} else {
-	    prev_bin = cur_bin;
-	}
-    }
-#endif // TIME_R_USERFUNCTIONS
-
-    /* print static and function table timers */
-    fprintf(fd, "#!LABEL\tself\ttotal\tstarts\taborts\thas_bcode\n");
-
-#if !defined(TIME_R_STATICTIMERS) && defined(TIME_R_USERFUNCTIONS)
-    // ensure the fallback timer is printed if static timers are off
-    timeR_print_bin(fd, &timeR_bins[TR_UserFuncFallback], true);
-#endif
-
-#ifdef TIME_R_STATICTIMERS
-    for (unsigned int i = TR_Startup; i < TR_StaticBinCount; i++) {
-	/* skip disabled timers */
-	if (!timer_enables[i])
-	    continue;
-
-	timeR_print_bin(fd, &timeR_bins[i], true);
-    }
-#endif
-
-#ifdef TIME_R_EXTFUNC
-    timeR_print_bin(fd, &timeR_bins[TR_HashOverhead], false);
-#endif
-
-#ifdef TIME_R_FUNTAB
-    for (unsigned int i = TR_StaticBinCount; i < first_userfn_idx; i++)
-	timeR_print_bin(fd, &timeR_bins[i], false);
-#endif
-
-#if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
-    /* print user function timers */
-    for (unsigned int i = 0; i < next_bin - first_userfn_idx; i++) {
-	tr_bin_t *bin = binpointers[i];
-
-	if (bin->name[0] != 0)
-	    /* print only if it has a name */
-	    timeR_print_bin(fd, bin, false);
-    }
-
-    free(binpointers);
-#endif
+    if (timeR_output_raw)
+	timeR_dump_raw(fd);
+    else
+	timeR_dump_processed(fd, end_time - start_time);
 }
 
 
