@@ -273,6 +273,40 @@ static void timeR_print_bin(FILE *fd, tr_bin_t *bin, bool force,
 }
 
 static void timeR_dump_raw(FILE *fd) {
+#ifdef TIME_R_FUNTAB
+    /* calculate and print sums for the builtin/special timers */
+    timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
+    unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
+
+    int i = 0;
+    while (R_FunTab[i].name != NULL) {
+	unsigned int bin_id = TR_StaticBinCount + i;
+
+	if ((R_FunTab[i].eval % 10) == 0) {
+	    /* SPECIALSXP */
+	    sself_sum  += timeR_bins[bin_id].sum_self;
+	    stotal_sum += timeR_bins[bin_id].sum_total;
+	    sstart_sum += timeR_bins[bin_id].starts;
+	    sabort_sum += timeR_bins[bin_id].aborts;
+	} else {
+	    /* BUILTINSXP */
+	    bself_sum  += timeR_bins[bin_id].sum_self;
+	    btotal_sum += timeR_bins[bin_id].sum_total;
+	    bstart_sum += timeR_bins[bin_id].starts;
+	    babort_sum += timeR_bins[bin_id].aborts;
+	}
+
+	i++;
+    }
+
+    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
+
+    fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
+	    bself_sum, btotal_sum, bstart_sum, babort_sum);
+    fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
+	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+#endif
+
 #ifdef TIME_R_USERFUNCTIONS
     /* sort the user function timers by name */
     tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
@@ -292,6 +326,8 @@ static void timeR_dump_raw(FILE *fd) {
 	ustart_sum    += bin->starts;
 	uabort_sum    += bin->aborts;
     }
+
+    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
 	    uself_sum, utotal_sum,
@@ -342,6 +378,42 @@ static void timeR_dump_raw(FILE *fd) {
 }
 
 static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
+#ifdef TIME_R_FUNTAB
+    /* calculate and print sums for the builtin/special timers */
+    timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
+    unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
+
+    int i = 0;
+    while (R_FunTab[i].name != NULL) {
+	unsigned int bin_id = TR_StaticBinCount + i;
+
+	if ((R_FunTab[i].eval % 10) == 0) {
+	    /* SPECIALSXP */
+	    sself_sum  += timeR_bins[bin_id].sum_self;
+	    stotal_sum += timeR_bins[bin_id].sum_total;
+	    sstart_sum += timeR_bins[bin_id].starts;
+	    sabort_sum += timeR_bins[bin_id].aborts;
+	} else {
+	    /* BUILTINSXP */
+	    bself_sum  += timeR_bins[bin_id].sum_self;
+	    btotal_sum += timeR_bins[bin_id].sum_total;
+	    bstart_sum += timeR_bins[bin_id].starts;
+	    babort_sum += timeR_bins[bin_id].aborts;
+	}
+
+	i++;
+    }
+
+    fprintf(fd, "#!LABEL\tself_percentage\tself\ttotal\tcalls\taborts\n");
+
+    fprintf(fd, "BuiltinSum\t%.2f%%\t%lld\t%lld\t%llu\t%llu\n",
+	    (double)bself_sum / total_runtime * 100.0,
+	    bself_sum, btotal_sum, bstart_sum, babort_sum);
+    fprintf(fd, "SpecialSum\t%.2f%%\t%lld\t%lld\t%llu\t%llu\n",
+	    (double)sself_sum / total_runtime * 100.0,
+	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+#endif
+
 #ifdef TIME_R_USERFUNCTIONS
     /* calculate user function sum */
     timeR_t            uself_sum  = 0, utotal_sum = 0;
@@ -355,6 +427,8 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
 	ustart_sum += bin->starts;
 	uabort_sum += bin->aborts;
     }
+
+    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
 	    uself_sum,  utotal_sum,
@@ -376,7 +450,7 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
 	  compare_selftime_desc);
 
     /* print all timers */
-    fprintf(fd, "# --- individual results\tself_percentage\tself\ttotal\tcalls\taborts\thas_bcode\n");
+    fprintf(fd, "# --- individual timers\tself_percentage\tself\ttotal\tcalls\taborts\thas_bcode\n");
 
     for (unsigned int i = 0; i < next_bin; i++) {
 	tr_bin_t *bin = binpointers[i];
@@ -422,40 +496,6 @@ static void timeR_dump(FILE *fd) {
 	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
 	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
     fprintf(fd, "TotalRuntime\t%ld\n", (unsigned long)(end_time - start_time));
-
-#ifdef TIME_R_FUNTAB
-    /* calculate and print sums for the builtin/special timers */
-    timeR_t            bself_sum  = 0, btotal_sum = 0, sself_sum  = 0, stotal_sum = 0;
-    unsigned long long bstart_sum = 0, babort_sum = 0, sstart_sum = 0, sabort_sum = 0;
-
-    int i = 0;
-    while (R_FunTab[i].name != NULL) {
-	unsigned int bin_id = TR_StaticBinCount + i;
-
-	if ((R_FunTab[i].eval % 10) == 0) {
-	    /* SPECIALSXP */
-	    sself_sum  += timeR_bins[bin_id].sum_self;
-	    stotal_sum += timeR_bins[bin_id].sum_total;
-	    sstart_sum += timeR_bins[bin_id].starts;
-	    sabort_sum += timeR_bins[bin_id].aborts;
-	} else {
-	    /* BUILTINSXP */
-	    bself_sum  += timeR_bins[bin_id].sum_self;
-	    btotal_sum += timeR_bins[bin_id].sum_total;
-	    bstart_sum += timeR_bins[bin_id].starts;
-	    babort_sum += timeR_bins[bin_id].aborts;
-	}
-
-	i++;
-    }
-
-    fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
-
-    fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
-	    bself_sum, btotal_sum, bstart_sum, babort_sum);
-    fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
-	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
-#endif
 
     if (timeR_output_raw)
 	timeR_dump_raw(fd);
