@@ -1120,7 +1120,7 @@ SEXP install(const char *name)
 
 SEXP attribute_hidden do_internal(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_dotSpecial2);
+    BEGIN_TIMER(TR_do_internal);
     SEXP s, fun, ans;
     int save = R_PPStackTop;
     int flag;
@@ -1194,7 +1194,7 @@ SEXP attribute_hidden do_internal(SEXP call, SEXP op, SEXP args, SEXP env)
     UNPROTECT(1);
     check_stack_balance(INTERNAL(fun), save);
     vmaxset(vmax);
-    END_TIMER(TR_dotSpecial2);
+    END_TIMER(TR_do_internal);
     return (ans);
 }
 #undef __R_Names__

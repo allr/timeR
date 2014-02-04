@@ -120,7 +120,7 @@ static char *bin_names[] = {
 
     // names.c
     "Install",
-    "dotSpecial2",
+    "do_internal",
 
     // relop.c
     "doRelop",
