@@ -1,69 +1,922 @@
-Compilation notes:
-- Use --enable-timeR to enable when running configure
-- Use --with-timeR-clock=[posix|rdtsc|rdtscp] to select the
-  clock source used, default is posix. Be aware of the
-  limitations of rdtsc/rdtscp, Wikipedia mentions a few:
-  https://en.wikipedia.org/wiki/Time_Stamp_Counter
+Intro
+=====
+timeR is a modified R interpreter providing deterministic profiling
+It can be compiled to provide timing information at various levels of
+detail, from functions in R code to specifically instrumented portions
+of the R interpreter itself.
 
-Usage:
-  R --timeR-file foo.txt <other parameters>
+Compiling timeR
+===============
+The system requirements for compiling timeR are basically the same as
+for the standard R interpreter, with the additional caveat that a Perl
+interpreter (at least version 5.10) is required and compilation under
+anything but 64 bit x86 Linux has not been tested.
 
-The output is a few informational lines in "keyword<whitespace>value"
-format followed by a single comment line starting with #, after
-which the timers are dumped in tab-delimited format. The colums
-are the timer name, the time accumulated on this timer (excluding
-child timers), the total time accumulated on this timer
-(including child timers), the number of times this timer was started,
-the number of times this timer was stopped implicitly and
-a 0/1 indicator that is 1 if at least one execution of the function
-used a byte-compiled version or 0 if it was always interpreted.
+Compiling timeR works the same way as compiling an unmodified R
+interpreter (see the file INSTALL for details), but you need to
+add at least the `--enable-timeR` option when running configure.
+timeR is mostly configured at compile time for performance reasons, so
+it adds a few options to configure:
 
-To suppress timers in the output that were never triggered
-(number of starts 0), add --timeR-quiet to the command line
-options for R.
+-   `--enable-timeR`
 
-Design goals:
-- mostly compatible with old timeR
-- introduces no failures in R selftests ("make check")
-- no new #ifdefs in R code
-- capable of measuring its own overhead where required
-- simple way of adding additional timers
-- compile-time selection of time measurement method
-- resistant against any possible control flow in R,
-  flow through specific functions to "unwind" the
-  timer stack in case of longjmp or similar is not
-  required
+    enable timeR in compilation - must be provided if any timeR
+    feature is to be used
+
+-   `--enable-timeR-static` / `--disable-timeR-static`
+
+    Enable/disable the static timers that are manually added in the R
+    interpreter source, default enabled. If this option is enabled,
+    additional fine-grained control over the enabled or disabled
+    timers is available using a list of static timers, see the
+    --with-timeR-static-list option for details.
+
+-   `--enable-timeR-funtab` / `--disable-timeR-funtab`
+
+    Enable/disable the timers for the R function table, i.e. all
+    internals and primitives of R, default enabled.
+
+-   `--enable-timeR-userfunc` / `--disable-timeR-userfunc`
+
+    Enable/disable the timers for user functions, default enabled.
+
+-   `--enable-timeR-external` / `--disable-timeR-external`
+
+    Enable/disable the timers for calls to external code, default
+    disabled.
+
+-   `--with-timeR-clock=(posix|rdtsc|rdtscp)`
+
+    This option selects which clock source timeR uses for its
+    measurements, default is posix. Please see the section "Clock
+    sources" below for details.
+
+-   `--with-timeR-static-list=FILE`
+
+    This option can be used to specify a file that selects which
+    static timers should be enabled or disabled when compiling a
+    timeR-enabled R interpreter. By default the file
+    tools/timeR-staticlist.txt is used, which just enables all
+    timers. Details about the file format can be found in the example
+    file.
 
 
-Possible future design issues:
-- not thread-safe
+Clock sources
+=============
+timeR needs a high-resolution time source for its measurements. It
+currently supports three different clock sources with different pros
+and cons:
 
-Currently unreached design goals:
-- "make check" fails due to additional field in srcrefs
-  -> programs can detect if profiled or not
-  -> alternative implementation using a lang5 instead of lang4
-     in xxdefun had a similar problem
-  -> ignored for now, mostly an aesthetics issue
+The *posix* clock source is the default setting. It uses the POSIX
+clock_gettime function to read nanosecond-resolution time stamps
+(although the accuracy may be lower). It should not be affected by
+power-saving features of the CPU or differences between CPU cores in a
+multi-core or multi-processor system and is independent of the CPU
+architecture. When the posix clock source is used, the output file
+shows times in nanoseconds.
 
-Partially reached design goals:
-- adding new timers not simple enough,
-  requires modification in three places
-  (timeR.h, timeR.c, measurement location)
-  -> reduction to 2 maybe possible with preprocessor hacks,
-     reduction to 1 probably not with standard C
-- start/end positions of some timers have moved slightly
-  compared to timeR
-- time accounting in case of errors differs from old timeR
-  (partial function execution and error path are added
-   to the functions's timer now, was the caller's timer before)
+The *rdtscp* and *rdtsc* clock sources read a hardware counter
+available in x86-compatible processors. This counter counts clock
+cycles, so its conversion factor to real time depends on the clock
+speed of the CPU that timeR was running on. *rdtscp* is the newer
+way to access this counter, so it may not be available on some older
+CPUs. If a timeR-enabled interpreter was compiled to use rdtscp, but
+the CPU it is running on does not support it, timeR will show a
+diagnostic message and abort immediately. You can avoid this by
+compiling timeR for *rdtsc* instead of rdtscp, but this older method
+incurs a slightly higher overhead when accessing the counter.
 
-Would be useful, but can live without:
-- comments explaining mptr->measurement->bin hierarchy
+On some CPUs, *rdtsc(p)* is affected by power-saving features of the
+processor which change the CPU clock. timeR assumes that you know what
+you are doing and does not check for this issue. On these systems, the
+*posix* clock source should provide correct times even with
+power-saving features active.
 
-Wishlist items:
-- bin IDs stay attached at serialisation (not critical, just inelegant)
-- wrapping of every SETJMP is extremely ugly, can't handle by wrapping
-  in a function though (would return to invalid stack frame)
+On some multi-socket systems, the processor cycle counter may not be
+synchronized between processors in different sockets. This may lead to
+inaccurate or incorrect time measurements if the operating system
+decides to move the R interpreter from one socket to another. timeR
+does not check for this issue as we assume that it is a rare problem
+and detecting it requires considerable work. If you know or suspect
+that your system may be affected, using the posix clock source should
+(in theory) avoid these problem.
 
-Possible future extensions:
-- check if a reasonable file name can be generated when source() is used
+
+Using timeR
+===========
+timeR adds several command line options to the R interpreter which can
+be used when running R or Rscript. It is recommended to use timeR only
+in non-interactive mode as timeR will also profile the time needed to
+enter commands when R is used interactively.
+
+The results of a profiling run are always written to a file. The
+name of this file are specified using either the `--timeR-file` or
+`--timeR-raw` options (`--time` is accepted as a short form of
+`--timeR-file`). The output format differs slightly between these two
+options: If `--timeR-file` is used, the time results are sorted
+according to the self-time of each timer and a column showing the
+self-time as a percentage of total time is added. The output format
+used with `--timeR-raw` omits the sorting by time to provide a more
+consistent ordering and leaves out the percentage.
+
+Additionally, the options `--timeR-quiet` and `--timeR-verbose` can be
+used to specify if timers which had zero calls should be shown in the
+output or not, the default is to not show then (--timeR-quiet). For
+technical reasons some zero-call timers may be shown anyway in the raw
+output format.
+
+Sample command line:
+
+    ./bin/Rscript --time=foo.time --timeR-verbose -f ../something.R
+
+
+Output format
+=============
+The output of timeR is a text file that should be importable in many
+spreadsheet applications like LibreOffice Calc as a tab-separated CSV
+file. Each line has a "keyword" in its first column followed by
+tab-separated data values. Additionally a few lines starting with "#"
+are embedded in the file to provide additional information about the
+data when it is imported by traceR or when the file is manually
+inspected - the fields in the "#" lines are lined up with the data
+columns they correspond to. Since some of the keywords can be rather
+long, it is recommended to increase the tab size to a suitable value
+when viewing the output file in a text editor - 30 characters per tab
+seems to be a good starting point.
+
+The output file can be split into two sections: An initial block with
+basic information about the interpreter run and a list of timers.  The
+keywords in the basic information block are as follows:
+
+- Workdir
+
+    This keyword lists the current directory at the time of the R
+    invocation.
+
+- TraceDate
+
+    This keyword lists the date and time when the output file was
+    written, which may differ significantly from the start time if a
+    long-running script was profiled. The format of the value is
+    defined by the asctime C library function and is a string of the
+    form "Wed Jun 30 21:49:08 1993".
+    ("ProfileDate" would be a better name, but the current name has
+    been kept for historical reasons.)
+
+- Rusage*
+
+    The keywords starting with "Rusage" keywords show results from a
+    call to the getrusage C function at the time the output file is
+    written, which gives a record of some resource usage values of the
+    R interpreter recorded by the operating system. Not every value is
+    available on every operating system, for example Linux just
+    returns zero for some of these values. Since timeR is developed on
+    Linux, the following descriptions are based on its usage of the
+    rusage values. If you don't use Linux, check the documentation of
+    your operating system (e.g. "man getrusage") for more details of
+    values that are not explained here. Unused values are shown as 0.
+
+- RusageMaxResidentMemorySet
+
+    Value of ru_maxrss, the maximum resident set size in KiBytes. This
+    is basically the maximum amount of RAM given to the interpreter by
+    the operating system while it was running.
+
+- RusageSharedMemSize
+
+    Value of ru_ixrss, the integral shared memory size. This value is
+    not used on Linux.
+
+- RusageUnsharedDataSize
+
+    Value of ru_idrss, the integral unshared data size. This value is
+    not used on Linux.
+
+- RusagePageReclaims
+
+    Value of ru_minflt, the number of page faults in the R interpreter
+    that could be serviced without requiring any I/O activity.
+    (also known as "minor faults", the current keyword is kept for
+    historical reasons)
+
+- RusagePageFaults
+
+    Value of ru_majflt, the number of page faults in the R interpreter
+    that required I/O activity to service, e.g. reading from a
+    memory-mapped file.
+    (also known as "major faults", the current keyword is kept for
+    historical reasons)
+
+- RusageSwaps
+
+    Value of ru_nswap, a field commented just as "swaps" in the Linux
+    getrusage man page. This value is not used on Linux.
+
+- RusageBlockInputOps
+
+    Value of ru_inblock, the number of times the file system had to
+    perform input, e.g. when a file is read.
+
+- RusageBlockOutputOps
+
+    Value of ru_outblock, the number of times the file system had to
+    perform output, e.g. when a file is written.
+
+- RusageIPCSends
+
+    Value of ru_msgsnd, the number of IPC messages sent. This value is
+    not used on Linux.
+
+- RusageIPCRecv
+
+    Value of ru_msgrcv, the number of IPC messages received. This
+    value is not used on Linux.
+
+- RusageSignalsRcvd
+
+    Value of ru_nsignals, the number of signals received by the R
+    interpreter process. This value is not used on Linux.
+
+- RusageVolnContextSwitches
+
+    Value of ru_nvcsw, the number of voluntary context switches. This
+    value counts the number of times the R interpreter voluntarily
+    gave up the CPU before its time slice ended, e.g. to wait for an
+    I/O operation.
+
+- RusageInvolnContextSwitches
+
+    Value of ru_nivcsw, the number of involuntary context
+    switches. This value counts the number of times the R interpreter
+    was forced to give up the CPU by the operating system,
+    e.g. because its time slice was exceeded or a higher-priority
+    process became runnable.
+
+- TimerUnit
+
+    The TimerUnit keyword shows the unit used for all of the time
+    measurements in the output file. If timeR was compiled to use
+    POSIX clock_gettime as a clock source, the value will be "1 ns" as
+    the function returns time stamps with one nanosecond
+    resolution. If timeR was compiled to use *rdtsc* or *rdtscp* as
+    its clock source, the value of this keyword will be "1 cpu tick"
+    as these clock sources return times as CPU clock ticks which may
+    not have a simple factor for convertion into wall clock time.
+
+- OverheadEstimates
+
+    The OverheadEstimates keyword provides two estimations for the
+    overhead incurred by time measurements. Both of these use the same
+    time unit as all other time measurements in the output file.
+
+    The first estimate is the (arithmetic) average of 1000 start/stop
+    cycles of a timer in a tight loop with no code executing between
+    the start and stop. This can be used to estimate the profiling
+    overhead for a small, often-called function.
+
+    The second value for this keyword is the time needed for a single
+    start/stop cycle of a timer with no loop, taken very early during
+    the initialization of the R interpreter. This value can be taken
+    as a rough estimate of the overhead incurred when the measurement
+    functions are not present in the CPU cache, e.g. when a
+    long-running, code+data-intensive function is profiled.
+
+- TotalRun-Time
+
+    This keyword provides the total run time of the R interpreter
+    including all of the startup sequence in the same unit as all the
+    other measurements in the output file.
+
+- BuiltinSum
+
+    This keyword is only present if function table timers are
+    enabled. It provides a sum for all function table timers that are
+    marked as BUILTINSXP in the R function table (src/main/names.c).
+    The values are the same as for the main timer list except that the
+    bytecode flag field is omitted. Please see below for a more
+    detailed description of the values.
+
+- SpecialSum
+
+    This keyword is only present if function table timers are
+    enabled. It provides a sum for all function table timers that are
+    marked as SPECIALSXP in the R function table (src/main/names.c).
+    The values are the same as for the main timer list except that the
+    bytecode flag field is omitted. Please see below for a more
+    detailed description of the values.
+
+- UserFunctionSum
+
+    This keyword is only present if user function timers are
+    enabled. It provides a sum for all user function timers. The
+    values are the same as for the main timer list except that the
+    percentage is not shown even if the raw output format is not
+    selected and the bytecode flag is omitted. Please see below for a
+    more detailed description of the values.
+
+
+Timers in the output file
+-------------------------
+The contents of the timer section of the output file vary depending on
+the configuration of timeR (both compile-time and run-time) and the
+measurement results: If timeR is set to use "quiet" output (which is
+the default), it will omit all timers which were never
+triggered. Also, the list of user function timers obviously depends on
+the R program that was run.
+
+In raw mode, the timers are sorted by their category: Statically
+defined timers are listed first, in the order they are defined in
+src/main/timeR.c. Next are the function table timers, in the same
+order the functions are defined in src/main/names.c. Finally the user
+function and external function timers are listed, sorted
+alphabetically by their name. To simplify some details of traceR, raw
+mode always outputs all static timers, even when their number of calls
+is zero.
+
+In "processed" mode (i.e. using the --time or --timeR-file switch),
+the list of timers are printed to the file in descending order, sorted
+by their self time.
+
+Each timer provides 5 (in raw mode) or 6 (in processed mode) values
+which are labelled *self_percentage* (only processed mode), *self*,
+*total*, *calls*, *aborts* and *has_bcode*. For a better illustration
+of the *self* and *total* values we will consider the following small R
+program:
+
+    a <- function () { Sys.sleep(1) }
+    b <- function () { a(); Sys.sleep(1) }
+    b()
+
+If you run these three lines with a timeR-enabled R that is set up to
+time user functions (and nothing else), both *self* and *total* for
+this function will be approximately one second. For b, the *total*
+time will be approximately two seconds as it calls a and then sleeps
+for one second itself. The *self* value for b will only be
+approximately one second though, because calling a switches to a's
+timer and is therefore not considered part of b's *self* time. Viewed
+on a more global level, the *self* values of all timers define a
+partition of the total interpreter run-time into distinct
+categories. This means that it is valid to add the *self* times
+from different timers to get a meaningful result while adding the
+*total* times from different timers is only correct if it is known
+that none of the timers can be active at the same time. For the same
+reason, processed mode only adds the *self_percentage* column which is
+the percentage of the timer's self time in relation to the total
+interpreter run-time - a similar calculation for the total time of a
+timer would be meaningless. Please note that the total time value even
+sums up times when a timer is activated while it is already running,
+e.g. in an R function that calls itself recursively. This can lead to
+total times that are higher than the total run-time of the interpreter,
+but it still is a valid measurement.
+
+The previous example assumed that the R interpreter is compiled to
+measure user functions only and nothing else. This is because
+`Sys.sleep` is a internal function of the R interpreter - if function
+table timers are enabled, Sys.sleep has its own timer, shifting the
+*self* time from the example R functions to Sys.sleep
+instead. Similarly, we have placed a statically defined timer in the
+implementation of Sys.sleep which would receive the *self* time from
+the example functions if static timers are enabled. Therefore you
+should always consider which measurements are important for your use
+case when you compile timeR - the defaults were chosen by our needs
+when analyzing the R interpreter.
+
+The *calls* value shows the number of times the particular timer was
+started, which is basically the number of times a particular function
+or function part (for certain static timers) was called.
+
+The *aborts* value shows the number of times the particular timer was
+ended prematurely. This can happen due to the use of certain non-local
+control flow constructs in the R interpreter and despite the
+dangerous-looking name is nothing to worry about - for example every
+use of `return` in an R function will also count as an *abort* for the
+return primitive. (however, if you extend timeR with additional static
+timers, be sure to check their aborts value to make sure that you did
+not forget an `END_TIMER` call somewhere)
+
+The *has_bcode* value is a flag that is currently used only for R
+functions and will show either 0 or 1. If the flag is 1, at least one
+execution of this function has used the byte code interpreter.
+
+
+### R function timers ###
+
+When compiled to measure user functions (enabled by default), timeR
+attaches a timer to each R function that is defined. timeR tries to
+detect the name of the variable the function is assigned to and uses
+that in conjunction with the file it was read from as the name of the
+timer, e.g. "foo.R:bar". If timeR cannot detect the variable name, it
+creates a special name that gives the file name, line and column of
+the function definition, e.g. "foo.R:<anon function defined in line
+394 column 28>". This can for example happen when the function is
+defined while passing it as an argument to another function like
+"tryCatch(expr, error = function (e) { ... })".
+
+To find the corresponding source code for a function listed as
+"anon" by timeR you may need to be a bit creative: If the code
+comes from a package, it is usually installed from a temporary
+directory (somewhere below /tmp on Unix) which is deleted after
+installation. Libraries included with the R interpreter show a path
+pointing to the directory where R is compiled like
+/some/where/R-3.0.1/library/<name>/R/<name>, but the actual source
+that the line number corresponds to is located in
+"/some/where/R-3.0.1/src/library/<name>/all.R". This discrepancy is
+caused by the way the R interpreter creates source references
+internally and might be fixed in the future.
+
+For autoload libraries, the timer name is generated when the autoload
+library is generated, not when it is loaded. If the library was
+generated in an R interpreter without timeR, all functions loaded from
+it will be named "(deserialized)" because timeR is unable to generate
+a better name at this time.
+
+It is also possible that timeR encounters a function that is
+completely missing debug information. Currently timeR does not attempt
+to correct this as it has no way to create a meaningful and
+"repeatable" name for such a function in its output. Instead it
+accumulates the data for all such functions in the special timer
+called "UserFuncFallback". This case may appear if a function is
+deserialized from a data file created by an R interpreter without
+timeR support.
+
+There is an additional entry in the timeR output called "UserFunctionSum"
+that provides the sum of the times and start count of all user
+functions. This sum is sometimes convenient for analysis purposes.
+
+
+### External function timers ###
+
+In its default configuration, timeR measures the time spent in
+external function calls only by the function call method in the
+dotExternal/dotCall/dotC/dotFortran static timers. If you need a
+finer-grained measurement, you can use the `--enable-timeR-external`
+option of configure to compile timeR with per-function external call
+timing. In this mode, timeR generates a timer for each external
+function, similar to the user function timers used for R functions. In
+the output file these timers are listed by the name of the called
+function, prefixed with "<ExternalCode>:". If the above-mentioned dot*
+static timers are still enabled, their self-time measurements are
+basically invalidated as the external function timer takes over as
+soon as the dot* timer is started. These functions are also not
+included in the UserFunctionSum key in the output file.
+
+The external function timers are disabled by default because mapping
+an external function name to a timer creates a small overhead. This
+overhead is shown in the output file as the HashOverhead key which is
+located at the beginning of the external function timer listing if the
+output file is in raw mode.
+
+Please note that the standard R interpreter libraries make extensive
+use of the external function interface itself to call functions within
+the interpreter, so even if your program does not use any external
+code, some measurements will be listed if this type of timers is enabled.
+
+
+### Function table timers ###
+
+If function table timers are enabled (by default they are), timeR
+attaches a timer to each entry in the table of internal/primitive
+functions (see src/base/names.c in the R interpreter source code). In
+the output file these are listed as "<.Primitive>:name" or
+"<.Internal>:name" depending on their type.
+
+Some of the function table timers are effectively overridden by some
+of the statically defined timers (if enabled) as described below. In
+these cases, the self-time of the affected function table timers
+effectively only measures some timing overhead plus the call to the C
+function implementation.
+
+
+### Statically defined timers ###
+
+Statically defined timers are timers that are manually placed in the
+code of the interpreter in order to measure the execution time of
+specific code blocks. Their scope varies from a subset of a function
+to a set of multiple functions. Because of their close relation to
+specific places within the interpreter source code, the following list
+groups them by the source code file they are triggered in. Some of the
+timers measure functions that are also listed as a C function for an
+entry in the R function table, so if both function table timers and
+such a static timer are enabled, the self time of the affected
+function table timer only shows the small dispatching overhead and not
+the full calculation time.
+
+If you don't need all static timers, you can selectively enable or
+disable each one of them at compile time using the
+`--with-timeR-static-list=...` option of configure. The option
+requires the name of a file that specifies which timers are to be
+enabled or disabled as well as a default value for timers that are not
+listed. By default the file "tools/timeR-staticlist.txt" is used,
+which just enables all timers. The file format is documented in the
+default file.
+
+
+#### memory.c ####
+
+-   cons
+
+    This timer tracks the run-time of the cons() C function. It is used
+    to allocate a single cons cell which is a single element of a
+    pairlist (e.g. LISTSXP).
+
+-   allocVector
+
+    This timer tracks the run-time of the allocVector() C function. It
+    is the basic memory allocation function in the R interpreter for
+    vector data types.
+
+-   allocList
+
+    This timer tracks the run-time of the allocList() C function. It
+    constructs a pairlist by repeatedly calling cons(), so the self
+    time of this function is relatively small as most of the time
+    is spent in cons().
+
+-   allocS4
+
+    This timer tracks the run-time of the allocS4Object() C
+    function. It is used to allocate a single cons cell of type S4SXP
+    which is then marked as an S4 object.
+
+-   GCInternal
+
+    This timer tracks the run-time of the R_gc_internal() C function.
+    It is the main function of the garbage collection, so this timer
+    will calculate the time spent collecting unused variables.
+
+
+#### arith.c ####
+
+-   doArith
+
+    This timer tracks the run-time of the do_arith() C function. This
+    function handles many of the binary arithmetic operators used in
+    R, specifically "+", "-", "*", "/", "^", "%%" and "%/%". This
+    timer has a function table timer equivalent for each of the
+    operators. If a separate measurement of these operators is
+    desired, the doArith timer should be disabled and the
+    corresponding function table timers should be used instead.
+
+
+#### array.c ####
+
+-   doMatprod
+
+    This timer tracks the run-time of the do_matprod() C function. This
+    function handles the operator "%*%" as well as the internals
+    "crossprod" and "tcrossprod". This timer has a function table
+    timer equivalent for each of these.
+
+
+#### connections.c ####
+
+-   gzFile
+
+    This timer tracks the run-time of multiple functions that allow
+    access to gzip-compressed files as R connections.
+
+-   bzFile
+
+    This timer tracks the run-time of multiple functions that allow
+    access to bzip2-compressed files as R connections.
+
+-   xzFile
+
+    This timer tracks the run-time of multiple functions that allow
+    access to xz-compressed files as R connections.
+
+
+#### context.c ####
+
+-   onExits
+
+    This timer tracks the run-time of the R_run_onexits C
+    function. This function is used when the R interpreter needs to
+    remove multiple entries from its context stack, e.g. when exiting
+    the interpreter or if an error occurs (which may not be fatal).
+
+
+#### dotcode.c ####
+
+The timers in dotcode.c all exist in two versions, one with the
+suffix "Full" and one without. The version with "Full" measures the
+entire time needed for the external function call, including parameter
+validation and processing, the version without the suffix measures
+just the time needed for the external function call. Since the two
+versions are nested, the self-time of the "Full" version corresponds
+to just the time needed for parameter valildation and processing.
+
+If external function timers are enabled, the self-time of the
+non-"Full" timers becomes meaningless as the external function timer
+is started immediately after the by-call-method timer is started.
+
+-   dotExternalFull / dotExternal
+
+    These two timers measure the time of external code called using
+    the ".External" function.
+
+-   dotCallFull / dotCall
+
+    These two timers measure the time of external code called using
+    the ".Call" function.
+
+-   dotCFull / dotC
+
+    These two timers measure the time of external code called using
+    the ".C" function.
+
+-   dotFortranFull / dotFortran
+
+    These two timers measure the time of external code called using
+    the ".Fortran" function.
+
+
+#### dounzip.c ####
+
+-   doUnzip
+
+    This timer measures the time spent in the Runzip function, which
+    is called when the R function "unzip" is used with the unzip
+    parameter set to "internal".
+
+-   zipRead
+
+    The zipRead timer measures two C-level functions that are used
+    when data is read from connections created with "unz".
+
+
+#### duplicate.c ####
+
+-   Duplicate
+
+    This timer measures the time spent in the duplicate() C function
+    which is often (*) used by the R interpreter to create a copy of a
+    piece of data in memory.
+
+    (*) but not always, for example dotcode.c has code paths that
+    generate a copy of function parameters "manually" instead of using
+    duplicate
+
+
+#### envir.c ####
+
+-   SymLookup
+
+    The SymLookup timer measures the time spent in multiple C
+    functions which look up symbols in the current chain of
+    environments. Multiple functions are accumulated in this timer
+    because they perform very similar jobs with minor additional
+    conditions, e.g. one of them looks for symbols of a specific
+    type.
+
+-   SymLookupEval
+
+    Some of the symbol lookup functions force all promises that they
+    encounter. The time needed to do so is measured in SymLookupEval,
+    which is a timer nested within SymLookup.
+
+-   FunLookup
+
+    The FunLookup timer measures the time spent in the findFun() C
+    function which is used to locate a function in the current chain
+    of environments given its name. Part of the time of the function
+    lookup is measured in the nested timer FunLookupEval.
+
+-   FunLookupEval
+
+    During function lookup (timed in FunLookup), the findFun function
+    forces all promises that it finds. The time needed to do so is
+    measured in FunLookupEval, which is a timer nested within
+    FunLookup.
+
+-   findVarInFrame3other
+
+    The R interpreter has another function for looking up symbols in
+    environments called findVarInFrame3. Unlike the functions timed in
+    FunLookup and SymLookup it only searches in the single environment
+    which is passed to it. Calls to it occur less often than to the
+    other two lookup types, but for completeness it was also
+    instrumented with a dedicated timer.
+
+
+#### eval.c ####
+
+-   Match
+
+    The Match timer measures the time needed to match the arguments
+    passed in a function call to the list of formal parameters given
+    in the function declaration.
+
+-   evalList
+
+    The evalList timer measures the time spent in the function of the
+    same name.
+
+
+#### internet.c ####
+
+-   Download
+
+    The download timer measures the time spent in the Rdownload C
+    function which is used when the _download.file_ R function is
+    called. The time accumulated on this timer can be used to factor
+    out download times from the total run-time of an R program.
+
+
+#### logic.c ####
+
+-   doLogic
+
+    The doLogic timer measures the time spent in the R functions "&",
+    "|" and "!". If a separate measurement of these three functions is
+    desired, the doLogic timer should be disabled and the
+    corresponding function table timers should be used instead.
+
+-   doLogic2
+
+    The doLogic2 timer measures the time spent in the R functions "&&"
+    and "||". If a separate measurement of these two functions is
+    desired, the doLogic timer should be disabled and the
+    corresponding function table timers should be used instead.
+
+-   doLogic3
+
+    The doLogic3 timer measures the time spent in the R functions _all_
+    and _any_. If a separate measurement of these two functions is
+    desired, the doLogic timer should be disabled and the
+    corresponding function table timers should be used instead.
+
+
+#### main.c ####
+
+-   Repl
+
+    The Repl timer measures the time spent in R's main interpreter
+    loop whose name is an abbreviation for Read-eval-print-loop. If an
+    interactive session is timed, the idle time R spends waiting for
+    user input is accumulated on this timer.
+
+-   SetupMainLoop
+
+    This timer measures the time needed for initializing the R
+    interpreter, starting in the part of the code that is shared
+    between all of the frontends and ports. A small part of the
+    initialization (e.g. command line parsing) is not covered by this
+    timer but is included with the Startup timer (see
+    below). SetupMainLoop is a nested timer within Startup.
+
+-   endMainloop
+
+    This timer measures the time needed for deinitializing the R
+    interpreter. It starts when the Repl loop exits and covers the
+    run-time up to the point where timeR writes its output file.
+
+
+#### names.c ####
+
+-   Install
+
+    The Install timer measures the time needed to look up and insert
+    values into R's global symbol table.
+
+-   do_internal
+
+    This timer measures the time spent handling .Internal calls. If
+    function table timers are enabled, a timer for the called function
+    is nested inside this timer and the self time of do_internal then
+    corresponds to the time needed for pre- and postprocessing the
+    function call.
+
+
+#### relop.c ####
+
+-   doRelop
+
+    The doRelop timer measures the time spent in the relational
+    operator functions of R (==, !=, <, <=, >=). If a seperate
+    measurement of these six functions is desired, the doRelop timer
+    should be disabled and the corresponding function table timers
+    should be used instead.
+
+
+#### subset.c ####
+
+-   doSubset
+
+    The doSubset timer measures the time spent in the "[" subsetting
+    operator and the .subset primitive. The "[" operator has a small
+    untimed part that checks if the call needs to be dispatched to a
+    method instead of the default implementation. Both functions can
+    be measured separately if desired by disabling the doSubset timer
+    and using the corresponding function table timers instead.
+
+-   doSubset2
+
+    The doSubset2 timer measures the time spent in the "[[" subsetting
+    operator and the .subset2 primitive. The "[[" operator has a small
+    untimed part that checks if the call needs to be dispatched to a
+    method instead of the default implementation. Both functions can
+    be measured separately if desired by disabling the doSubset2 timer
+    and using the corresponding function table timers instead.
+
+-   doSubset3
+
+    The doSubset3 timer measures the time spent in the R_subset3_dflt
+    C function which is used for the "$" subsetting operator in R. In
+    byte-compiled R code, the function is called directly while in
+    interpreted R code an additional part outside of this timer exists
+    which checks if the arguments are valid and if the call needs to
+    be dispatched to a method instead of the default
+    implementation. The time needed for these checks can be found in
+    the function table timer "<.Primitive>:$".
+
+
+#### Rsock.c ####
+
+-   Rsock
+
+    The Rsock timer measures the time spent in various socket
+    operations invoked from an R program (e.g. utils::read.socket,
+    utils::write.socket and related functions).
+
+
+#### sys-std.c ####
+
+-   Sleep
+
+    This timer measures the time spent sleeping via the "sys.sleep"
+    function.
+
+
+#### sys-unix.c ####
+
+-   System
+
+    This timer measures the time spent running external programs using
+    the "system" R function.
+
+
+#### other special timers ####
+
+-   Startup
+
+    The startup timer measures the total time spent in interpreter
+    startup from a very early point to the start of the Repl loop. The
+    SetupMainLoop timer is nested within this timer, only small parts
+    are covered by Startup and nothing else, for example the parsing
+    of the command line options of the R interpreter.
+
+-   TotalRun-Time
+
+    The TotalRun-Time field measures the total run-time of the R
+    interpreter from the very start of the interpreter to the point
+    where timeR writes its output file. Although you could generate
+    the same value (modulo rounding errors) by adding up the self time
+    of all timers, this single field is more convenient to use if you
+    want to calculate values relative to the total run-time.
+
+
+Adding static timers
+--------------------
+If you want to add another static timer, you first need to define a
+unique name for the timer in `src/main/timeR.c` in the `bin_names`
+array. As the source code is parsed by a helper script in order to
+generate a header file, you must make sure that your new entry is
+located on a line by itself and it must be located before the line `/*
+MARKER:END */`. It is recommended to add new entries at the end, but
+anywhere from the Startup timer is fine (entries before Startup are
+not shown in the output).
+
+After you have defined a new name for your new timer, you can add
+`BEGIN_TIMER(TR_<thatname>)` and `END_TIMER(TR_<thatname>)` statements
+to the part of the interpreter source code that you want to time. Make
+sure to add an `END_TIMER` call to every possible exit point of the
+code segment you want to time, otherwise your measurements will be
+incorrect. If this is the first use of timeR in this particular source
+file, you need to add `#include "timeR.h"` after the other `#include`
+lines at the beginning of the file.
+
+Adding static timers to a native code module of an external R package
+has never been tested and probably does not work - if you manage to
+make it work, please submit a patch.
+
+
+Legalese
+========
+Copyright (C) 2013-2014 TU Dortmund Informatik LS XII
+Inspired by r-timed from the [Reactor group](http://r.cs.purdue.edu/)
+at Purdue University
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, a copy is available at
+[http://www.r-project.org/Licenses/](http://www.r-project.org/Licenses/)
