@@ -3131,6 +3131,7 @@ static R_INLINE int bcStackScalar(R_bcstack_t *s, scalar_value_t *v)
 	} \
     } \
     Relop2(opval, opsym); \
+    NEXT(); \
 } while (0)
 
 static R_INLINE SEXP getPrimitive(SEXP symbol, SEXPTYPE type)
@@ -3232,13 +3233,14 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   SEXP y = GETSTACK(-1); \
   SETSTACK(-2, do_fun(call, opval, opsym, x, y,rho));	\
   R_BCNodeStackTop--; \
-  NEXT(); \
 } while(0)
 
 #define Arith1(opsym) do {		\
+  BEGIN_TIMER(TR_bcEvalArith1); \
   SEXP call = VECTOR_ELT(constants, GETOP()); \
   SEXP x = GETSTACK(-1); \
   SETSTACK(-1, cmp_arith1(call, opsym, x, rho)); \
+  END_TIMER(TR_bcEvalArith1); \
   NEXT(); \
 } while(0)
 
@@ -3251,6 +3253,7 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
     SKIP_OP(); \
     SETSTACK_REAL(-2, (a) op (b)); \
     R_BCNodeStackTop--; \
+    END_TIMER(TR_bcEvalArith2); \
     NEXT(); \
 } while (0)
 
@@ -3260,11 +3263,13 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
 	SKIP_OP(); \
 	SETSTACK_INTEGER(-2, (int) dval); \
 	R_BCNodeStackTop--; \
+	END_TIMER(TR_bcEvalArith2); \
 	NEXT(); \
     } \
 } while(0)
 
 # define FastBinary(op,opval,opsym) do { \
+    BEGIN_TIMER(TR_bcEvalArith2); \
     scalar_value_t vx; \
     scalar_value_t vy; \
     int typex = bcStackScalar(R_BCNodeStackTop - 2, &vx); \
@@ -3286,6 +3291,8 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
 	} \
     } \
     Arith2(opval, opsym); \
+    END_TIMER(TR_bcEvalArith2); \
+    NEXT(); \
 } while (0)
 
 #define BCNPUSH(v) do { \
@@ -4198,6 +4205,8 @@ static R_INLINE void checkForMissings(SEXP args, SEXP call)
 
 static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 {
+  BEGIN_TIMER(TR_bcEval);
+
   SEXP value, constants;
   BCODE *pc, *codebase;
   int ftype = 0;
@@ -4222,6 +4231,7 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
   /* allow bytecode to be disabled for testing */
   if (R_disable_bytecode) {
       SEXP ans = eval(bytecodeExpr(body), rho);
+      END_TIMER(TR_bcEval);
       return ans;
   }
 
@@ -4235,6 +4245,7 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 		  warned = TRUE;
 		  warning(_("bytecode version mismatch; using eval"));
 	      }
+              END_TIMER(TR_bcEval);
 	      SEXP ans = eval(bytecodeExpr(body), rho);
 	      return ans;
 	  }
@@ -4734,7 +4745,12 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
     OP(SUB, 1): FastBinary(-, MINUSOP, R_SubSym);
     OP(MUL, 1): FastBinary(*, TIMESOP, R_MulSym);
     OP(DIV, 1): FastBinary(/, DIVOP, R_DivSym);
-    OP(EXPT, 1): Arith2(POWOP, R_ExptSym);
+    OP(EXPT, 1): {
+	  BEGIN_TIMER(TR_bcEvalArith2);
+	  Arith2(POWOP, R_ExptSym);
+	  END_TIMER(TR_bcEvalArith2);
+	  NEXT();
+      }
     OP(SQRT, 1): Math1(R_SqrtSym);
     OP(EXP, 1): Math1(R_ExpSym);
     OP(EQ, 1): FastRelop2(==, EQOP, R_EqSym);
@@ -5118,6 +5134,7 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 #ifdef BC_PROFILING
   current_opcode = old_current_opcode;
 #endif
+  END_TIMER(TR_bcEval);
   return value;
 }
 

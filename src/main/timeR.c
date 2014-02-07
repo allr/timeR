@@ -104,6 +104,9 @@ static char *bin_names[] = {
     // eval.c
     "Match",
     "evalList",
+    "bcEval",
+    "bcEvalArith1",
+    "bcEvalArith2",
 
     // internet.c
     "Download",
@@ -138,6 +141,9 @@ static char *bin_names[] = {
 
     // sys-unix.c
     "System",
+
+    // add your own timers here
+
     /* MARKER:END */
 };
 
