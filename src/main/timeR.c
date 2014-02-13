@@ -107,6 +107,9 @@ static char *bin_names[] = {
     "bcEval",
     "bcEvalArith1",
     "bcEvalArith2",
+    "bcEvalMath1",
+    "bcEvalRelop",
+    "bcEvalLogic",
 
     // internet.c
     "Download",

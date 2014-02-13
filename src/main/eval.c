@@ -3109,10 +3109,12 @@ static R_INLINE int bcStackScalar(R_bcstack_t *s, scalar_value_t *v)
     SKIP_OP(); \
     SETSTACK_LOGICAL(-2, ((a) op (b)) ? TRUE : FALSE);	\
     R_BCNodeStackTop--; \
+    END_TIMER(TR_bcEvalRelop); \
     NEXT(); \
 } while (0)
 
 # define FastRelop2(op,opval,opsym) do { \
+    BEGIN_TIMER(TR_bcEvalRelop); \
     scalar_value_t vx; \
     scalar_value_t vy; \
     int typex = bcStackScalar(R_BCNodeStackTop - 2, &vx); \
@@ -3131,6 +3133,7 @@ static R_INLINE int bcStackScalar(R_bcstack_t *s, scalar_value_t *v)
 	} \
     } \
     Relop2(opval, opsym); \
+    END_TIMER(TR_bcEvalRelop); \
     NEXT(); \
 } while (0)
 
@@ -3214,7 +3217,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   SETSTACK(-1, CONS(GETSTACK(-1), R_NilValue));		     \
   SETSTACK(-1, do_fun(call, getPrimitive(which, BUILTINSXP), \
 		      GETSTACK(-1), rho));		     \
-  NEXT(); \
 } while(0)
 
 #define Builtin2(do_fun,which,rho) do {		     \
@@ -3224,7 +3226,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   R_BCNodeStackTop--; \
   SETSTACK(-1, do_fun(call, getPrimitive(which, BUILTINSXP),	\
 		      GETSTACK(-1), rho));			\
-  NEXT(); \
 } while(0)
 
 #define NewBuiltin2(do_fun,opval,opsym,rho) do {	\
@@ -4746,22 +4747,43 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
     OP(MUL, 1): FastBinary(*, TIMESOP, R_MulSym);
     OP(DIV, 1): FastBinary(/, DIVOP, R_DivSym);
     OP(EXPT, 1): {
-	  BEGIN_TIMER(TR_bcEvalArith2);
-	  Arith2(POWOP, R_ExptSym);
-	  END_TIMER(TR_bcEvalArith2);
-	  NEXT();
+	BEGIN_TIMER(TR_bcEvalArith2);
+	Arith2(POWOP, R_ExptSym);
+	END_TIMER(TR_bcEvalArith2);
+	NEXT();
       }
-    OP(SQRT, 1): Math1(R_SqrtSym);
-    OP(EXP, 1): Math1(R_ExpSym);
+    OP(SQRT, 1): {
+	BEGIN_TIMER(TR_bcEvalMath1);
+	Math1(R_SqrtSym);
+	END_TIMER(TR_bcEvalMath1);
+	NEXT();
+      }
+    OP(EXP, 1): {
+	BEGIN_TIMER(TR_bcEvalMath1);
+	Math1(R_ExpSym);
+	END_TIMER(TR_bcEvalMath1);
+	NEXT();
+      }
     OP(EQ, 1): FastRelop2(==, EQOP, R_EqSym);
     OP(NE, 1): FastRelop2(!=, NEOP, R_NeSym);
     OP(LT, 1): FastRelop2(<, LTOP, R_LtSym);
     OP(LE, 1): FastRelop2(<=, LEOP, R_LeSym);
     OP(GE, 1): FastRelop2(>=, GEOP, R_GeSym);
     OP(GT, 1): FastRelop2(>, GTOP, R_GtSym);
-    OP(AND, 1): Builtin2(do_logic, R_AndSym, rho);
-    OP(OR, 1): Builtin2(do_logic, R_OrSym, rho);
-    OP(NOT, 1): Builtin1(do_logic, R_NotSym, rho);
+    OP(AND, 1): {
+	Builtin2(do_logic, R_AndSym, rho);
+	NEXT();
+      }
+    OP(OR, 1): {
+	Builtin2(do_logic, R_OrSym, rho);
+	NEXT();
+      }
+    OP(NOT, 1): {
+	BEGIN_TIMER(TR_bcEvalLogic);
+	Builtin1(do_logic, R_NotSym, rho);
+	END_TIMER(TR_bcEvalLogic);
+	NEXT();
+      }
     OP(DOTSERR, 0): error(_("'...' used in an incorrect context"));
     OP(STARTASSIGN, 1):
       {
