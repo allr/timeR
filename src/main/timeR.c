@@ -97,9 +97,7 @@ static char *bin_names[] = {
     // envir.c
     "findVarInFrame3other",
     "SymLookup",
-    "SymLookupEval",
     "FunLookup",
-    "FunLookupEval",
 
     // eval.c
     "Match",

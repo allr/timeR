@@ -669,25 +669,12 @@ is started immediately after the by-call-method timer is started.
     conditions, e.g. one of them looks for symbols of a specific
     type.
 
--   SymLookupEval
-
-    Some of the symbol lookup functions force all promises that they
-    encounter. The time needed to do so is measured in SymLookupEval,
-    which is a timer nested within SymLookup.
-
 -   FunLookup
 
     The FunLookup timer measures the time spent in the findFun() C
     function which is used to locate a function in the current chain
     of environments given its name. Part of the time of the function
     lookup is measured in the nested timer FunLookupEval.
-
--   FunLookupEval
-
-    During function lookup (timed in FunLookup), the findFun function
-    forces all promises that it finds. The time needed to do so is
-    measured in FunLookupEval, which is a timer nested within
-    FunLookup.
 
 -   findVarInFrame3other
 
@@ -712,6 +699,7 @@ is started immediately after the by-call-method timer is started.
     The evalList timer measures the time spent in the function of the
     same name.
 
+FIXME: Describe bc* timers
 
 #### internet.c ####
 
