@@ -103,6 +103,7 @@ static char *bin_names[] = {
     "Match",
     "evalList",
     "bcEval",
+    "bcEvalGetvar",
     "bcEvalArith1",
     "bcEvalArith2",
     "bcEvalMath1",

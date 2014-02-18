@@ -699,7 +699,16 @@ is started immediately after the by-call-method timer is started.
     The evalList timer measures the time spent in the function of the
     same name.
 
+-   bcEvalGetvar
+
+    This timer measures the time spent in the inlined variant of the
+    DO_GETVAR macro, which provides optimisations for looking up
+    variables and functions. The self time of this timer covers only
+    these optimisations. If they do not apply to a particular lookup
+    the macro uses the findVar function which is measured in SymLookup.
+
 FIXME: Describe bc* timers
+
 
 #### internet.c ####
 

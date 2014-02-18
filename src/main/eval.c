@@ -3638,6 +3638,7 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
    rules other symbols, but as those are rare they are handled by the
    getvar() call. */
 #define DO_GETVAR(dd,keepmiss) do { \
+    BEGIN_TIMER(TR_bcEvalGetvar); \
     int sidx = GETOP(); \
     if (!dd && smallcache) { \
 	SEXP cell = GET_SMALLCACHE_BINDING_CELL(vcache, sidx); \
@@ -3654,6 +3655,7 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
 		SET_NAMED(value, 1); \
 	    R_Visible = TRUE; \
 	    BCNPUSH(value); \
+            END_TIMER(TR_bcEvalGetvar); \
 	    NEXT(); \
 	} \
 	if (cell != R_NilValue && ! IS_ACTIVE_BINDING(cell)) { \
@@ -3671,6 +3673,7 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
 		    SET_NAMED(value, 1);				\
 		R_Visible = TRUE;					\
 		BCNPUSH(value);						\
+                END_TIMER(TR_bcEvalGetvar);                             \
 		NEXT();							\
 	    }								\
 	}								\
@@ -3678,6 +3681,7 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
     SEXP symbol = VECTOR_ELT(constants, sidx);				\
     R_Visible = TRUE;							\
     BCNPUSH(getvar(symbol, rho, dd, keepmiss, vcache, sidx));		\
+    END_TIMER(TR_bcEvalGetvar);                                         \
     NEXT();								\
 } while (0)
 #else
@@ -4444,8 +4448,8 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
     OP(LDNULL, 0): R_Visible = TRUE; BCNPUSH(R_NilValue); NEXT();
     OP(LDTRUE, 0): R_Visible = TRUE; BCNPUSH(mkTrue()); NEXT();
     OP(LDFALSE, 0): R_Visible = TRUE; BCNPUSH(mkFalse()); NEXT();
-    OP(GETVAR, 1): DO_GETVAR(FALSE, FALSE);
-    OP(DDVAL, 1): DO_GETVAR(TRUE, FALSE);
+    OP(GETVAR, 1): { DO_GETVAR(FALSE, FALSE); }
+    OP(DDVAL, 1): { DO_GETVAR(TRUE, FALSE); }
     OP(SETVAR, 1):
       {
 	int sidx = GETOP();
@@ -4941,8 +4945,8 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	R_BCNodeStackTop -= 1;
 	NEXT();
     }
-    OP(GETVAR_MISSOK, 1): DO_GETVAR(FALSE, TRUE);
-    OP(DDVAL_MISSOK, 1): DO_GETVAR(TRUE, TRUE);
+    OP(GETVAR_MISSOK, 1): { DO_GETVAR(FALSE, TRUE); }
+    OP(DDVAL_MISSOK, 1): { DO_GETVAR(TRUE, TRUE); }
     OP(VISIBLE, 0): R_Visible = TRUE; NEXT();
     OP(SETVAR2, 1):
       {
