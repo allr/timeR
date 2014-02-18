@@ -796,6 +796,20 @@ FIXME: Describe bc* timers
     should be used instead.
 
 
+#### subassign.c ####
+
+-   doSubassign
+
+    FIXME
+
+-   doSubassign2
+
+    FIXME
+
+-   doSubassign3
+
+    FIXME
+
 #### subset.c ####
 
 -   doSubset

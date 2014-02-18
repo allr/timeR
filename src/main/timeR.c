@@ -130,6 +130,11 @@ static char *bin_names[] = {
     // relop.c
     "doRelop",
 
+    // subassign.c
+    "doSubassign",
+    "doSubassign2",
+    "doSubassign3",
+
     // subset.c
     "doSubset",
     "doSubset2",
