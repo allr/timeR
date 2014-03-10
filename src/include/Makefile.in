@@ -22,7 +22,7 @@ INT_HEADERS = Defn.h Errormsg.h Fileio.h Graphics.h GraphicsBase.h \
    Rdynpriv.h Rgraphics.h Rinlinedfuns.h Startup.h rlocale.h timeR.h
 @WANT_TIME_R_TRUE@ INT_HEADERS += timeR-config.h timeR-posix.h timeR-rdtscp.h timeR-rdtsc.h
 
-DISTFILES = Makefile.in Makefile.win README $(INT_HEADERS) $(SRC_HEADERS) \
+DISTFILES = Makefile.in Makefile.win $(INT_HEADERS) $(SRC_HEADERS) \
   config.h.in stamp-h.in Rmath.h0.in memcheck.h valgrind.h
 
 SUBDIRS = R_ext

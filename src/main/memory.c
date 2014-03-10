@@ -1239,12 +1239,17 @@ SEXP R_MakeWeakRefC(SEXP key, SEXP val, R_CFinalizer_t fin, Rboolean onexit)
     return w;
 }
 
+static Rboolean R_finalizers_pending = FALSE;
 static void CheckFinalizers(void)
 {
     SEXP s;
-    for (s = R_weak_refs; s != R_NilValue; s = WEAKREF_NEXT(s))
+    R_finalizers_pending = FALSE;
+    for (s = R_weak_refs; s != R_NilValue; s = WEAKREF_NEXT(s)) {
 	if (! NODE_IS_MARKED(WEAKREF_KEY(s)) && ! IS_READY_TO_FINALIZE(s))
 	    SET_READY_TO_FINALIZE(s);
+	if (IS_READY_TO_FINALIZE(s))
+	    R_finalizers_pending = TRUE;
+    }
 }
 
 /* C finalizers are stored in a CHARSXP.  It would be nice if we could
@@ -1320,6 +1325,14 @@ void R_RunWeakRefFinalizer(SEXP w)
 
 static Rboolean RunFinalizers(void)
 {
+    /* Prevent this function from running again when already in
+       progress. Jumps can only occur inside the top level context
+       where they will be caught, so the flag is guaranteed to be
+       reset at the end. */
+    static Rboolean running = FALSE;
+    if (running) return FALSE;
+    running = TRUE;
+
     volatile SEXP s, last;
     volatile Rboolean finalizer_run = FALSE;
 
@@ -1370,6 +1383,7 @@ static Rboolean RunFinalizers(void)
 	else last = s;
 	s = next;
     }
+    running = FALSE;
     return finalizer_run;
 }
 
@@ -1381,6 +1395,12 @@ void R_RunExitFinalizers(void)
 	if (FINALIZE_ON_EXIT(s))
 	    SET_READY_TO_FINALIZE(s);
     RunFinalizers();
+}
+
+void R_RunPendingFinalizers(void)
+{
+    if (R_finalizers_pending)
+	RunFinalizers();
 }
 
 void R_RegisterFinalizerEx(SEXP s, SEXP fun, Rboolean onexit)
@@ -1870,6 +1890,9 @@ SEXP attribute_hidden do_gc(SEXP call, SEXP op, SEXP args, SEXP rho)
     reset_max = asLogical(CADR(args));
     num_old_gens_to_collect = NUM_OLD_GENERATIONS;
     R_gc();
+#ifndef IMMEDIATE_FINALIZERS
+    R_RunPendingFinalizers();
+#endif
     gc_reporting = ogc;
     /*- now return the [used , gc trigger size] for cells and heap */
     PROTECT(value = allocVector(REALSXP, 14));
@@ -2677,7 +2700,6 @@ static void R_gc_internal(R_size_t size_needed)
     BEGIN_TIMER(TR_GCInternal);
     R_size_t onsize = R_NSize /* can change during collection */;
     double ncells, vcells, vfrac, nfrac;
-    Rboolean first = TRUE;
     SEXPTYPE first_bad_sexp_type = 0;
 #ifdef PROTECTCHECK
     SEXPTYPE first_bad_sexp_type_old_type = 0;
@@ -2685,7 +2707,10 @@ static void R_gc_internal(R_size_t size_needed)
     SEXP first_bad_sexp_type_sexp = NULL;
     int first_bad_sexp_type_line = 0;
 
+#ifdef IMMEDIATE_FINALIZERS
+    Rboolean first = TRUE;
  again:
+#endif
 
     gc_count++;
 
@@ -2723,6 +2748,7 @@ static void R_gc_internal(R_size_t size_needed)
 		 vcells, (int) (vfrac + 0.5));
     }
 
+#ifdef IMMEDIATE_FINALIZERS
     if (first) {
 	first = FALSE;
 	/* Run any eligible finalizers.  The return result of
@@ -2736,6 +2762,7 @@ static void R_gc_internal(R_size_t size_needed)
 	    (NO_FREE_NODES() || size_needed > VHEAP_FREE()))
 	    goto again;
     }
+#endif
 
     if (first_bad_sexp_type != 0) {
 #ifdef PROTECTCHECK
@@ -3532,7 +3559,7 @@ SEXP do_Rprofmem(SEXP args)
 	error(_("invalid '%s' argument"), "filename");
     append_mode = asLogical(CADR(args));
     filename = STRING_ELT(CAR(args), 0);
-    threshold = REAL(CADDR(args))[0];
+    threshold = (size_t)REAL(CADDR(args))[0];
     if (strlen(CHAR(filename)))
 	R_InitMemReporting(filename, append_mode, threshold);
     else
