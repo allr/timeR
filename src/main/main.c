@@ -82,29 +82,13 @@ static void R_ReplFile(FILE *fp, SEXP rho, const char *filename)
 {
     ParseStatus status;
     int count=0;
-    SrcRefState ParseState;
     int savestack;
     
-    R_InitSrcRefState(&ParseState);
-    ParseState.keepSrcRefs = TRUE;
-    // FIXME: Semi-duplicated from gram.y:setParseFilename
-    PROTECT_WITH_INDEX(ParseState.SrcFile = NewEnvironment(R_NilValue, R_NilValue, R_EmptyEnv), &(ParseState.SrcFileProt));
-    if (filename != NULL) {
-        defineVar(install("filename"), mkString(filename), ParseState.SrcFile);
-    } else {
-        error("ReplFile() on file with no name!\n");
-    }
-
-    SEXP class;
-    PROTECT(class = allocVector(STRSXP, 2));
-    SET_STRING_ELT(class, 0, mkChar("srcfilealias"));
-    SET_STRING_ELT(class, 1, mkChar("srcfile"));
-    setAttrib(ParseState.SrcFile, R_ClassSymbol, class);
-
+    R_InitSrcRefState();
     savestack = R_PPStackTop;    
     for(;;) {
 	R_PPStackTop = savestack;
-	R_CurrentExpr = R_Parse1File(fp, 1, &status, &ParseState);
+	R_CurrentExpr = R_Parse1File(fp, 1, &status, filename);
 	switch (status) {
 	case PARSE_NULL:
 	    break;
@@ -731,11 +715,19 @@ void setup_Rmainloop(void)
     volatile int doneit;
     volatile SEXP baseEnv;
     SEXP cmd;
-    FILE *fp;
     char deferred_warnings[11][250];
     volatile int ndeferred_warnings = 0;
 
     BEGIN_TIMER(TR_SetupMainLoop);
+
+    /* In case this is a silly limit: 2^32 -3 has been seen and
+     * casting to intptr_r relies on this being smaller than 2^31 on a
+     * 32-bit platform. */
+    if(R_CStackLimit > 100000000U) 
+	R_CStackLimit = (uintptr_t)-1;
+    /* make sure we have enough head room to handle errors */
+    if(R_CStackLimit != -1)
+	R_CStackLimit = (uintptr_t)(0.95 * R_CStackLimit);
 
     InitConnections(); /* needed to get any output at all */
 
@@ -813,6 +805,8 @@ void setup_Rmainloop(void)
     /* make sure srand is called before R_tmpnam, PR#14381 */
     srand(TimeToSeed());
 
+    InitArithmetic();
+    InitParser();
     InitTempDir(); /* must be before InitEd */
     InitMemory();
     InitStringHash(); /* must be before InitNames */
@@ -822,8 +816,8 @@ void setup_Rmainloop(void)
     InitDynload();
     InitOptions();
     InitEd();
-    InitArithmetic();
     InitGraphics();
+    
     R_Is_Running = 1;
     R_check_locale();
 
@@ -867,7 +861,11 @@ void setup_Rmainloop(void)
        Perhaps it makes more sense to quit gracefully?
     */
 
-    fp = R_OpenLibraryFile("base");
+#ifdef RMIN_ONLY
+    /* This is intended to support a minimal build for experimentation. */
+    if (R_SignalHandlers) init_signal_handlers();
+#else
+    FILE *fp = R_OpenLibraryFile("base");
     if (fp == NULL)
 	R_Suicide(_("unable to open the base package\n"));
 
@@ -886,6 +884,7 @@ void setup_Rmainloop(void)
 	R_ReplFile(fp, baseEnv, base_name);
     }
     fclose(fp);
+#endif
 
     /* This is where we source the system-wide, the site's and the
        user's profile (in that order).  If there is an error, we
@@ -1067,24 +1066,44 @@ static void printwhere(void)
   Rprintf("\n");
 }
 
+static void printBrowserHelp(void)
+{
+    Rprintf("n          next\n");
+    Rprintf("s          step into\n");
+    Rprintf("f          finish\n");
+    Rprintf("c or cont  continue\n");
+    Rprintf("Q          quit\n");
+    Rprintf("where      show stack\n");
+    Rprintf("help       show help\n");
+    Rprintf("<expr>     evaluate expression\n");
+}
+
 static int ParseBrowser(SEXP CExpr, SEXP rho)
 {
     int rval = 0;
     if (isSymbol(CExpr)) {
 	const char *expr = CHAR(PRINTNAME(CExpr));
-	if (!strcmp(expr, "n")) {
+	if (!strcmp(expr, "c") || !strcmp(expr, "cont")) {
+	    rval = 1;
+	    SET_RDEBUG(rho, 0);
+	} else if (!strcmp(expr, "f")) {
+	    rval = 1;
+	    RCNTXT *cntxt = R_GlobalContext;
+	    while (cntxt != R_ToplevelContext 
+		      && !(cntxt->callflag & (CTXT_RETURN | CTXT_LOOP))) {
+		cntxt = cntxt->nextcontext;
+	    }
+	    cntxt->browserfinish = 1;	    
 	    SET_RDEBUG(rho, 1);
+	    R_BrowserLastCommand = 'f';
+	} else if (!strcmp(expr, "help")) {
+	    rval = 2;
+	    printBrowserHelp();
+	} else if (!strcmp(expr, "n")) {
 	    rval = 1;
-	}
-	if (!strcmp(expr, "c")) {
-	    rval = 1;
-	    SET_RDEBUG(rho, 0);
-	}
-	if (!strcmp(expr, "cont")) {
-	    rval = 1;
-	    SET_RDEBUG(rho, 0);
-	}
-	if (!strcmp(expr, "Q")) {
+	    SET_RDEBUG(rho, 1);
+	    R_BrowserLastCommand = 'n';
+	} else if (!strcmp(expr, "Q")) {
 
 	    /* Run onexit/cend code for everything above the target.
 	       The browser context is still on the stack, so any error
@@ -1098,11 +1117,14 @@ static int ParseBrowser(SEXP CExpr, SEXP rho)
 	    SET_RDEBUG(rho, 0); /*PR#1721*/
 
 	    jump_to_toplevel();
-	}
-	if (!strcmp(expr, "where")) {
+	} else if (!strcmp(expr, "s")) {
+	    rval = 1;
+	    SET_RDEBUG(rho, 1);
+	    R_BrowserLastCommand = 's';	    
+	} else if (!strcmp(expr, "where")) {
+	    rval = 2;
 	    printwhere();
 	    /* SET_RDEBUG(rho, 1); */
-	    rval = 2;
 	}
     }
     return rval;
@@ -1161,9 +1183,10 @@ SEXP attribute_hidden do_browser(SEXP call, SEXP op, SEXP args, SEXP rho)
 	Rprintf("Called from: ");
 	tmp = asInteger(GetOption(install("deparse.max.lines"), R_BaseEnv));
 	if(tmp != NA_INTEGER && tmp > 0) R_BrowseLines = tmp;
-        if( cptr != R_ToplevelContext )
+        if( cptr != R_ToplevelContext ) {
 	    PrintValueRec(cptr->call, rho);
-        else
+	    SET_RDEBUG(cptr->cloenv, 1);
+        } else
             Rprintf("top level \n");
 
 	R_BrowseLines = 0;
@@ -1425,8 +1448,9 @@ R_removeTaskCallback(SEXP which)
     if(TYPEOF(which) == STRSXP) {
 	val = Rf_removeTaskCallbackByName(CHAR(STRING_ELT(which, 0)));
     } else {
-	id = asInteger(which) - 1;
-	val = Rf_removeTaskCallbackByIndex(id);
+	id = asInteger(which);
+	if (id != NA_INTEGER) val = Rf_removeTaskCallbackByIndex(id - 1);
+	else val = FALSE;
     }
     return ScalarLogical(val);
 }

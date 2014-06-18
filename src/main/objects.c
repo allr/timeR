@@ -724,7 +724,7 @@ SEXP attribute_hidden do_nextmethod(SEXP call, SEXP op, SEXP args, SEXP env)
     else {
 	if(strlen(CHAR(PRINTNAME(CAR(cptr->call)))) >= 512)
 	   error(_("call name too long in '%s'"),
-		 CHAR(PRINTNAME(CAR(cptr->call))));
+		 EncodeChar(PRINTNAME(CAR(cptr->call))));
 	snprintf(b, 512, "%s", CHAR(PRINTNAME(CAR(cptr->call))));
     }
 
@@ -1617,8 +1617,8 @@ SEXP asS4(SEXP s, Rboolean flag, int complete)
     if(flag == IS_S4_OBJECT(s))
 	return s;
     PROTECT(s);
-    if(NAMED(s) == 2)
-	s = duplicate(s);
+    if(MAYBE_SHARED(s))
+	s = shallow_duplicate(s);
     UNPROTECT(1);
     if(flag) SET_S4_OBJECT(s);
     else {

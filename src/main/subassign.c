@@ -90,6 +90,21 @@
 
 #include "timeR.h"
 
+/* This version of SET_VECTOR_ELT does not increment the REFCNT for
+   the new vector->element link. It assumes that the old vector is
+   becoming garbage and so it's references become no longer
+   accessible. */
+static R_INLINE void SET_VECTOR_ELT_NR(SEXP x, R_xlen_t i, SEXP v)
+{
+#ifdef COMPUTE_REFCNT_VALUES
+    int ref = REFCNT(v);
+    SET_VECTOR_ELT(x, i, v);
+    SET_REFCNT(v, ref);
+#else
+    SET_VECTOR_ELT(x, i, v);
+#endif
+}
+
 /* EnlargeVector() takes a vector "x" and changes its length to "newlen".
    This allows to assign values "past the end" of the vector or list.
    Note that, unlike S, we only extend as much as is necessary.
@@ -143,7 +158,7 @@ static SEXP EnlargeVector(SEXP x, R_xlen_t newlen)
     case EXPRSXP:
     case VECSXP:
 	for (i = 0; i < len; i++)
-	    SET_VECTOR_ELT(newx, i, VECTOR_ELT(x, i));
+	    SET_VECTOR_ELT_NR(newx, i, VECTOR_ELT(x, i));
 	for (i = len; i < newlen; i++)
 	    SET_VECTOR_ELT(newx, i, R_NilValue);
 	break;
@@ -450,7 +465,7 @@ static R_INLINE SEXP VECTOR_ELT_FIX_NAMED(SEXP y, R_xlen_t i) {
 
 static SEXP VectorAssign(SEXP call, SEXP x, SEXP s, SEXP y)
 {
-    SEXP dim, indx, newnames;
+    SEXP indx, newnames;
     R_xlen_t i, ii, n, nx, ny;
     int iy, which;
     R_xlen_t stretch;
@@ -463,19 +478,21 @@ static SEXP VectorAssign(SEXP call, SEXP x, SEXP s, SEXP y)
     /* Check to see if we have special matrix subscripting. */
     /* If so, we manufacture a real subscript vector. */
 
-    dim = getAttrib(x, R_DimSymbol);
     PROTECT(s);
-    if (isMatrix(s) && isArray(x) && ncols(s) == length(dim)) {
-        if (isString(s)) {
-            s = strmat2intmat(s, GetArrayDimnames(x), call);
-            UNPROTECT(1);
-            PROTECT(s);
-        }
-        if (isInteger(s) || isReal(s)) {
-            s = mat2indsub(dim, s, R_NilValue);
-            UNPROTECT(1);
-            PROTECT(s);
-        }
+    if (ATTRIB(s) != R_NilValue) { /* pretest to speed up simple case */
+	SEXP dim = getAttrib(x, R_DimSymbol);
+	if (isMatrix(s) && isArray(x) && ncols(s) == length(dim)) {
+	    if (isString(s)) {
+		s = strmat2intmat(s, GetArrayDimnames(x), call);
+		UNPROTECT(1);
+		PROTECT(s);
+	    }
+	    if (isInteger(s) || isReal(s)) {
+		s = mat2indsub(dim, s, R_NilValue);
+		UNPROTECT(1);
+		PROTECT(s);
+	    }
+	}
     }
 
     stretch = 1;
@@ -514,7 +531,7 @@ static SEXP VectorAssign(SEXP call, SEXP x, SEXP s, SEXP y)
     /* objects.  A full duplication is wasteful. */
 
     if (x == y)
-	PROTECT(y = duplicate(y));
+	PROTECT(y = shallow_duplicate(y));
     else
 	PROTECT(y);
 
@@ -793,7 +810,7 @@ static SEXP MatrixAssign(SEXP call, SEXP x, SEXP s, SEXP y)
     /* objects.  A full duplication is wasteful. */
 
     if (x == y)
-	PROTECT(y = duplicate(y));
+	PROTECT(y = shallow_duplicate(y));
     else
 	PROTECT(y);
 
@@ -1084,7 +1101,7 @@ static SEXP ArrayAssign(SEXP call, SEXP x, SEXP s, SEXP y)
     /* objects.  A full duplication is wasteful. */
 
     if (x == y)
-	PROTECT(y = duplicate(y));
+	PROTECT(y = shallow_duplicate(y));
     else
 	PROTECT(y);
 
@@ -1287,7 +1304,7 @@ static SEXP SimpleListAssign(SEXP call, SEXP x, SEXP s, SEXP y, int ind)
 
 static SEXP listRemove(SEXP x, SEXP s, int ind)
 {
-    SEXP a, pa, px, val;
+    SEXP pv, px, val;
     int i, ii, *indx, ns, nx;
     R_xlen_t stretch=0;
     const void *vmax = vmaxget();
@@ -1308,50 +1325,87 @@ static SEXP listRemove(SEXP x, SEXP s, int ind)
 	    if (ii != NA_INTEGER) indx[ii - 1] = 0;
 	}
     }
-    PROTECT(a = CONS(R_NilValue, R_NilValue));
+
     px = x;
-    pa = a;
+    pv = val = R_NilValue;
     for (i = 0; i < nx; i++) {
 	if (indx[i]) {
-	    SETCDR(pa, px);
-	    px = CDR(px);
-	    pa = CDR(pa);
-	    SETCDR(pa, R_NilValue);
+	    if (val == R_NilValue)
+		val = px;
+	    pv = px;
 	}
 	else {
-	    px = CDR(px);
+	    /* The current cell, to which px points, is removed and is
+	       no longer accessible, so we can decrement the reference
+	       count on it's fields. */
+	    DECREMENT_REFCNT(CAR(px));
+	    DECREMENT_REFCNT(CDR(px));
+	    if (pv != R_NilValue)
+		SETCDR(pv, CDR(px));
 	}
+	px = CDR(px);
     }
-    val = CDR(a);
     if (val != R_NilValue) {
 	SET_ATTRIB(val, ATTRIB(x));
 	IS_S4_OBJECT(x) ?  SET_S4_OBJECT(val) : UNSET_S4_OBJECT(val);
 	SET_OBJECT(val, OBJECT(x));
 	SET_NAMED(val, NAMED(x));
     }
-    UNPROTECT(3);
+    UNPROTECT(2);
     vmaxset(vmax);
     return val;
 }
 
 
-static void SubAssignArgs(SEXP args, SEXP *x, SEXP *s, SEXP *y)
+static R_INLINE int SubAssignArgs(SEXP args, SEXP *x, SEXP *s, SEXP *y)
 {
-    SEXP p;
-    if (length(args) < 2)
+    if (CDR(args) == R_NilValue)
 	error(_("SubAssignArgs: invalid number of arguments"));
     *x = CAR(args);
-    if(length(args) == 2) {
+    if (CDDR(args) == R_NilValue) {
 	*s = R_NilValue;
 	*y = CADR(args);
+	return 0;
     }
     else {
+	int nsubs = 1;
+	SEXP p;
 	*s = p = CDR(args);
-	while (CDDR(p) != R_NilValue)
+	while (CDDR(p) != R_NilValue) {
 	    p = CDR(p);
+	    nsubs++;
+	}
 	*y = CADR(p);
 	SETCDR(p, R_NilValue);
+	return nsubs;
     }
+}
+
+/* Version of DispatchOrEval for "[" and friends that speeds up simple cases.
+   Also defined in subset.c */
+static R_INLINE
+int R_DispatchOrEvalSP(SEXP call, SEXP op, const char *generic, SEXP args,
+		    SEXP rho, SEXP *ans)
+{
+    SEXP prom = NULL;
+    if (args != R_NilValue && CAR(args) != R_DotsSymbol) {
+	SEXP x = eval(CAR(args), rho);
+	PROTECT(x);
+	if (! OBJECT(x)) {
+	    *ans = CONS_NR(x, evalListKeepMissing(CDR(args), rho));
+	    UNPROTECT(1);
+	    return FALSE;
+	}
+	prom = mkPROMISE(CAR(args), R_GlobalEnv);
+	SET_PRVALUE(prom, x);
+	args = CONS(prom, CDR(args));
+	UNPROTECT(1);
+    }
+    PROTECT(args);
+    int disp = DispatchOrEval(call, op, generic, args, rho, ans, 0, 0);
+    if (prom) DECREMENT_REFCNT(PRVALUE(prom));
+    UNPROTECT(1);
+    return disp;
 }
 
 
@@ -1370,7 +1424,7 @@ SEXP attribute_hidden do_subassign(SEXP call, SEXP op, SEXP args, SEXP rho)
     /* We evaluate the first argument and attempt to dispatch on it. */
     /* If the dispatch fails, we "drop through" to the default code below. */
 
-    if(DispatchOrEval(call, op, "[<-", args, rho, &ans, 0, 0))
+    if(R_DispatchOrEvalSP(call, op, "[<-", args, rho, &ans))
 /*     if(DispatchAnyOrEval(call, op, "[<-", args, rho, &ans, 0, 0)) */
       return(ans);
 
@@ -1385,18 +1439,18 @@ SEXP attribute_hidden do_subassign_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     PROTECT(args);
 
+    nsubs = SubAssignArgs(args, &x, &subs, &y);
+
     /* If there are multiple references to an object we must */
     /* duplicate it so that only the local version is mutated. */
     /* This will duplicate more often than necessary, but saves */
     /* over always duplicating. */
     /* Shouldn't x be protected?  It is (as args is)! */
 
-    if (NAMED(CAR(args)) == 2)
-	x = SETCAR(args, duplicate(CAR(args)));
+    if (MAYBE_SHARED(CAR(args)))
+	x = SETCAR(args, shallow_duplicate(CAR(args)));
 
-    SubAssignArgs(args, &x, &subs, &y);
     S4 = IS_S4_OBJECT(x);
-    nsubs = length(subs);
 
     oldtype = 0;
     if (TYPEOF(x) == LISTSXP || TYPEOF(x) == LANGSXP) {
@@ -1480,7 +1534,7 @@ static SEXP DeleteOneVectorListItem(SEXP x, R_xlen_t which)
 	k = 0;
 	for (i = 0 ; i < n; i++)
 	    if(i != which)
-		SET_VECTOR_ELT(y, k++, VECTOR_ELT(x, i));
+		SET_VECTOR_ELT_NR(y, k++, VECTOR_ELT(x, i));
 	xnames = getAttrib(x, R_NamesSymbol);
 	if (xnames != R_NilValue) {
 	    PROTECT(ynames = allocVector(STRSXP, n - 1));
@@ -1507,7 +1561,7 @@ SEXP attribute_hidden do_subassign2(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     SEXP ans;
 
-    if(DispatchOrEval(call, op, "[[<-", args, rho, &ans, 0, 0))
+    if(R_DispatchOrEvalSP(call, op, "[[<-", args, rho, &ans))
 /*     if(DispatchAnyOrEval(call, op, "[[<-", args, rho, &ans, 0, 0)) */
       return(ans);
 
@@ -1525,7 +1579,7 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     PROTECT(args);
 
-    SubAssignArgs(args, &x, &subs, &y);
+    nsubs = SubAssignArgs(args, &x, &subs, &y);
     S4 = IS_S4_OBJECT(x);
 
     /* Handle NULL left-hand sides.  If the right-hand side */
@@ -1548,14 +1602,13 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
     /* Ensure that the LHS is a local variable. */
     /* If it is not, then make a local copy. */
 
-    if (NAMED(x) == 2)
-	SETCAR(args, x = duplicate(x));
+    if (MAYBE_SHARED(x))
+	SETCAR(args, x = shallow_duplicate(x));
 
     xtop = xup = x; /* x will be the element which is assigned to */
 
     dims = getAttrib(x, R_DimSymbol);
     ndims = length(dims);
-    nsubs = length(subs);
 
     /* code to allow classes to extend ENVSXP */
     if(TYPEOF(x) == S4SXP) {
@@ -1752,8 +1805,7 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	case 1919:      /* vector     <- vector     */
 	case 2020:	/* expression <- expression */
 
-	    if( NAMED(y) ) y = duplicate(y);
-	    SET_VECTOR_ELT(x, offset, y);
+	    SET_VECTOR_ELT(x, offset, R_FixupRHS(x, y));
 	    break;
 
 	case 2424:      /* raw <- raw */
@@ -1783,8 +1835,7 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	UNPROTECT(1);
     }
     else if (isPairList(x)) {
-	/* if (NAMED(y)) */
-	y = duplicate(y);
+	y = R_FixupRHS(x, y);
 	PROTECT(y);
 	if (nsubs == 1) {
 	    if (isNull(y)) {
@@ -1868,7 +1919,7 @@ SEXP attribute_hidden do_subassign3(SEXP call, SEXP op, SEXP args, SEXP env)
     /* replace the second argument with a string */
     SETCADR(args, input);
 
-    if(DispatchOrEval(call, op, "$<-", args, env, &ans, 0, 0))
+    if(R_DispatchOrEvalSP(call, op, "$<-", args, env, &ans))
       return(ans);
 
     if (! iS)
@@ -1890,18 +1941,18 @@ SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
     PROTECT_WITH_INDEX(val, &pvalidx);
     S4 = IS_S4_OBJECT(x);
 
-    if (NAMED(x) == 2)
-	REPROTECT(x = duplicate(x), pxidx);
+    if (MAYBE_SHARED(x))
+	REPROTECT(x = shallow_duplicate(x), pxidx);
 
     /* If we aren't creating a new entry and NAMED>0
        we need to duplicate to prevent cycles.
        If we are creating a new entry we could duplicate
-       or increase NAMED. We duplicate if NAMED==1, but
-       not if NAMED==2 */
-    if (NAMED(val) == 2)
+       or increase NAMED. We duplicate if NAMED == 1, but
+       not if NAMED > 1 */
+    if (MAYBE_SHARED(val))
 	maybe_duplicate=TRUE;
-    else if (NAMED(val)==1)
-	REPROTECT(val = duplicate(val), pvalidx);
+    else if (MAYBE_REFERENCED(val))
+	REPROTECT(val = R_FixupRHS(x, val), pvalidx);
     /* code to allow classes to extend ENVSXP */
     if(TYPEOF(x) == S4SXP) {
 	xS4 = x;
@@ -1913,7 +1964,7 @@ SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
     if ((isList(x) || isLanguage(x)) && !isNull(x)) {
 	/* Here we do need to duplicate */
 	if (maybe_duplicate)
-	    REPROTECT(val = duplicate(val), pvalidx);
+	    REPROTECT(val = R_FixupRHS(x, val), pvalidx);
 	if (TAG(x) == nlist) {
 	    if (val == R_NilValue) {
 		SET_ATTRIB(CDR(x), ATTRIB(x));
@@ -2016,7 +2067,7 @@ SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
 	    if (imatch >= 0) {
 		/* We are just replacing an element */
 		if (maybe_duplicate)
-		    REPROTECT(val = duplicate(val), pvalidx);
+		    REPROTECT(val = R_FixupRHS(x, val), pvalidx);
 		SET_VECTOR_ELT(x, imatch, val);
 	    }
 	    else {
@@ -2027,7 +2078,7 @@ SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
 		PROTECT(ans = allocVector(VECSXP, nx + 1));
 		PROTECT(ansnames = allocVector(STRSXP, nx + 1));
 		for (i = 0; i < nx; i++)
-		    SET_VECTOR_ELT(ans, i, VECTOR_ELT(x, i));
+		    SET_VECTOR_ELT_NR(ans, i, VECTOR_ELT(x, i));
 		if (isNull(names)) {
 		    for (i = 0; i < nx; i++)
 			SET_STRING_ELT(ansnames, i, R_BlankString);
