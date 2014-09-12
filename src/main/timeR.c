@@ -320,7 +320,7 @@ static void timeR_dump_raw(FILE *fd) {
 	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
 #endif
 
-#ifdef TIME_R_USERFUNCTIONS
+#if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
     /* sort the user function timers by name */
     tr_bin_t **binpointers = malloc(sizeof(tr_bin_t *) * (next_bin - first_userfn_idx));
     if (binpointers == NULL)
@@ -342,9 +342,11 @@ static void timeR_dump_raw(FILE *fd) {
 
     fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
+#  ifdef TIME_R_USERFUNCTIONS
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
 	    uself_sum, utotal_sum,
 	    ustart_sum, uabort_sum);
+#  endif
 
     merge_dupes(binpointers, next_bin - first_userfn_idx);
 #endif // TIME_R_USERFUNCTIONS

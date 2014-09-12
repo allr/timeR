@@ -232,8 +232,10 @@ extern int   timeR_reduced_output;
     }
 
 #  else
-#    define BEGIN_TIMER(bin) do {} while (0)
-#    define END_TIMER(bin)   do {} while (0)
+#    define BEGIN_TIMER(bin)                     do {} while (0)
+#    define END_TIMER(bin)                       do {} while (0)
+#    define BEGIN_TIMER_ALTERNATIVES(cond,tr,fa) do {} while (0)
+#    define END_TIMER_ALTERNATIVES(cond,tr,fa)   do {} while (0)
 #  endif
 
 #  define MARK_TIMER() \
