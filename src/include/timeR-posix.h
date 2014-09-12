@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define TIME_R_UNIT "1 ns"
+#define TIME_R_UNIT "ns"
 
 typedef long long timeR_t;
 

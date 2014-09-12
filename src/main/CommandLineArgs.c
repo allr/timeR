@@ -254,9 +254,7 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		timeR_reduced_output = 0;
 	    }
 
-	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
-		    strncmp(*av, "--timeR-raw",  11) == 0 ||
-		    strncmp(*av, "--time", 6) == 0) {
+	    else if(strncmp(*av, "--timeR-scale", 13) == 0) {
 		p = strchr(*av, '=');
 		if (p == NULL) {
 		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
@@ -267,8 +265,32 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		    R_ShowMessage(msg);
 		    break;
 		}
-		if(timeR_output_file != NULL)
+
+		lval = strtol(p, &p, 10);
+		if (lval < 0)
+		    R_ShowMessage(_("WARNING: '--timeR-scale' value is negative: ignored"));
+		else if (lval < 1)
+		    R_ShowMessage(_("WARNING: '--timeR-scale' value is too small: ignored"));
+		else timeR_scale = lval;
+	    }
+
+	    else if(strncmp(*av, "--timeR-file", 12) == 0 ||
+		    strncmp(*av, "--timeR-raw",  11) == 0 ||
+		    (strncmp(*av, "--time", 6) == 0 && (*av)[6] != 'R')) {
+		p = strchr(*av, '=');
+		if (p == NULL) {
+		    if(ac > 1) {ac--; av++; p = *av;} else p = NULL;
+		} else p++;
+		if (p == NULL || *p == 0) {
+		    snprintf(msg, 1024,
+		             _("WARNING: no value given for '%s'"), *av);
+		    R_ShowMessage(msg);
+		    break;
+		}
+		if(timeR_output_file != NULL) {
+		    R_ShowMessage(_("WARNING: multiple timeR output files specified, using last"));
 		    free(timeR_output_file);
+		}
 		timeR_output_file = strdup(p);
 
 		if (strncmp(*av, "--timeR-raw", 11) == 0)

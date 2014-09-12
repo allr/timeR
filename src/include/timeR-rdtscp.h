@@ -37,7 +37,7 @@
 
 #include <stdint.h>
 
-#define TIME_R_UNIT "1 cpu tick"
+#define TIME_R_UNIT "cpu tick(s)"
 
 #if !defined(__i386__) && !defined(__x86_64__)
 #  error "RDTSCP time measurement requested, but no x86(_64) compatible compiler used?"

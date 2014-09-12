@@ -201,6 +201,7 @@ static timeR_t         start_time, end_time;
 char *timeR_output_file;
 int   timeR_output_raw     = 0;
 int   timeR_reduced_output = 1;
+long  timeR_scale          = 1;
 
 /*** internal functions ***/
 
@@ -278,8 +279,8 @@ static void timeR_print_bin(FILE *fd, tr_bin_t *bin, bool force,
 	fprintf(fd, "%.2f%%\t", (double)bin->sum_self / all_self * 100.0);
 
     fprintf(fd, "%lld\t" "%lld\t" "%llu\t" "%llu\t" "%d\n",
-            bin->sum_self,
-            bin->sum_total,
+            bin->sum_self  / timeR_scale,
+            bin->sum_total / timeR_scale,
             bin->starts,
             bin->aborts,
             bin->bcode);
@@ -315,9 +316,13 @@ static void timeR_dump_raw(FILE *fd) {
     fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
     fprintf(fd, "BuiltinSum\t%lld\t%lld\t%llu\t%llu\n",
-	    bself_sum, btotal_sum, bstart_sum, babort_sum);
+	    bself_sum  / timeR_scale,
+	    btotal_sum / timeR_scale,
+	    bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%lld\t%lld\t%llu\t%llu\n",
-	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+	    sself_sum  / timeR_scale,
+	    stotal_sum / timeR_scale,
+	    sstart_sum, sabort_sum);
 #endif
 
 #if defined(TIME_R_USERFUNCTIONS) || defined(TIME_R_EXTFUNC)
@@ -344,7 +349,8 @@ static void timeR_dump_raw(FILE *fd) {
 
 #  ifdef TIME_R_USERFUNCTIONS
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
-	    uself_sum, utotal_sum,
+	    uself_sum  / timeR_scale,
+	    utotal_sum / timeR_scale,
 	    ustart_sum, uabort_sum);
 #  endif
 
@@ -392,6 +398,7 @@ static void timeR_dump_raw(FILE *fd) {
 #endif
 }
 
+// FIXME: Too much duplication between this and timeR_dump_raw
 static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
 #ifdef TIME_R_FUNTAB
     /* calculate and print sums for the builtin/special timers */
@@ -423,10 +430,14 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
 
     fprintf(fd, "BuiltinSum\t%.2f%%\t%lld\t%lld\t%llu\t%llu\n",
 	    (double)bself_sum / total_runtime * 100.0,
-	    bself_sum, btotal_sum, bstart_sum, babort_sum);
+	    bself_sum  / timeR_scale,
+	    btotal_sum / timeR_scale,
+	    bstart_sum, babort_sum);
     fprintf(fd, "SpecialSum\t%.2f%%\t%lld\t%lld\t%llu\t%llu\n",
 	    (double)sself_sum / total_runtime * 100.0,
-	    sself_sum, stotal_sum, sstart_sum, sabort_sum);
+	    sself_sum  / timeR_scale,
+	    stotal_sum / timeR_scale,
+	    sstart_sum, sabort_sum);
 #endif
 
 #ifdef TIME_R_USERFUNCTIONS
@@ -446,7 +457,8 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
     fprintf(fd, "#!LABEL\tself\ttotal\tcalls\taborts\n");
 
     fprintf(fd, "UserFunctionSum\t%lld\t%lld\t%llu\t%llu\n",
-	    uself_sum,  utotal_sum,
+	    uself_sum  / timeR_scale,
+	    utotal_sum / timeR_scale,
 	    ustart_sum, uabort_sum);
 #endif
 
@@ -504,12 +516,12 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "RusageSignalsRcvd\t%ld\n", my_rusage.ru_nsignals);
     fprintf(fd, "RusageVolnContextSwitches\t%ld\n", my_rusage.ru_nvcsw);
     fprintf(fd, "RusageInvolnContextSwitches\t%ld\n", my_rusage.ru_nivcsw);
-    fprintf(fd, "TimerUnit\t%s\n", TIME_R_UNIT);
+    fprintf(fd, "TimerUnit\t%ld %s\n", timeR_scale, TIME_R_UNIT);
 
     fprintf(fd, "#!LABEL\tsmall\tmedium\n");
     fprintf(fd, "OverheadEstimates\t%.3f\t%.3f\n",
-	    timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts,
-	    timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts);
+	    (timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts) / timeR_scale,
+	    (timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts) / timeR_scale);
     fprintf(fd, "TotalRuntime\t%ld\n", (unsigned long)(end_time - start_time));
 
     if (timeR_output_raw)
