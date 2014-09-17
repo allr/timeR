@@ -254,6 +254,10 @@ R_common_command_line(int *pac, char **argv, Rstart Rp)
 		timeR_reduced_output = 0;
 	    }
 
+	    else if (strncmp(*av, "--timeR-exclude-init", 20) == 0) {
+		timeR_exclude_init = 1;
+	    }
+
 	    else if(strncmp(*av, "--timeR-scale", 13) == 0) {
 		p = strchr(*av, '=');
 		if (p == NULL) {

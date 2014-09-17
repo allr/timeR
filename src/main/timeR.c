@@ -201,6 +201,7 @@ static timeR_t         start_time, end_time;
 char *timeR_output_file;
 int   timeR_output_raw     = 0;
 int   timeR_reduced_output = 1;
+int   timeR_exclude_init   = 0;
 long  timeR_scale          = 1;
 
 /*** internal functions ***/
@@ -467,20 +468,20 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
     if (binpointers == NULL)
 	abort();
 
-    for (unsigned int i = 0; i < next_bin; i++)
-	binpointers[i] = timeR_bins + i;
+    for (unsigned int i = TR_Startup; i < next_bin; i++)
+	binpointers[i - TR_Startup] = timeR_bins + i;
 
-    merge_dupes(binpointers, next_bin);
+    merge_dupes(binpointers, next_bin - TR_Startup);
 
     /* now sort by self time, descending */
-    qsort(binpointers, next_bin, sizeof(tr_bin_t *),
+    qsort(binpointers, next_bin - TR_Startup, sizeof(tr_bin_t *),
 	  compare_selftime_desc);
 
     /* print all timers */
     fprintf(fd, "# --- individual timers\tself_percentage\tself\ttotal\tcalls\taborts\thas_bcode\n");
 
-    for (unsigned int i = 0; i < next_bin; i++) {
-	tr_bin_t *bin = binpointers[i];
+    for (unsigned int i = TR_Startup; i < next_bin; i++) {
+	tr_bin_t *bin = binpointers[i - TR_Startup];
 
 	if (bin->name[0] != 0)
 	    timeR_print_bin(fd, bin, false, total_runtime);
@@ -610,6 +611,31 @@ void timeR_init_early(void) {
 
 void timeR_startup_done(void) {
     timeR_end_timer(&startup_mptr);
+
+    if (timeR_exclude_init) {
+	/* reset all bins */
+	for (unsigned int i = TR_HashOverhead; i < next_bin; i++) {
+	    tr_bin_t *bin = timeR_bins + i;
+
+	    if (bin->name[0] != 0) {
+		bin->sum_self  = 0;
+		bin->sum_total = 0;
+		bin->starts    = 0;
+		bin->aborts    = 0;
+		bin->bcode     = 0;
+	    }
+	}
+
+	assert(timeR_current_mblock == timeR_measureblocks[0]); // we shouldn't have many active timers here
+
+	/* reset all stack entries */
+	start_time = tr_now();
+
+	for (unsigned int i = 1; i < timeR_next_mindex; i++) {
+	    timeR_current_mblock[i].start     = start_time;
+	    timeR_current_mblock[i].lower_sum = 0;
+	}
+    }
 }
 
 void timeR_finish(void) {
