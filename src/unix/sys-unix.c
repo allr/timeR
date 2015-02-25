@@ -55,8 +55,6 @@
 
 #include <errno.h>
 
-#include "timeR.h"
-
 extern Rboolean LoadInitFile;
 
 /*
@@ -245,7 +243,6 @@ double R_getClockIncrement(void)
 #define INTERN_BUFSIZE 8096
 SEXP attribute_hidden do_system(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    BEGIN_TIMER(TR_System);
     SEXP tlist = R_NilValue;
     int intern = 0;
 
@@ -317,7 +314,6 @@ SEXP attribute_hidden do_system(SEXP call, SEXP op, SEXP args, SEXP rho)
 	    }
 	}
 	UNPROTECT(2);
-	END_TIMER(TR_System);
 	return rval;
     }
     else { /* intern =  FALSE */
@@ -332,7 +328,6 @@ SEXP attribute_hidden do_system(SEXP call, SEXP op, SEXP args, SEXP rho)
 #endif
 	UNPROTECT(1);
 	R_Visible = 0;
-	END_TIMER(TR_System);
 	return tlist;
     }
 }

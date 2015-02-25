@@ -1286,7 +1286,6 @@ void attribute_hidden Rstd_addhistory(SEXP call, SEXP op, SEXP args, SEXP env)
 double currentTime(void); /* from datetime.c */
 SEXP attribute_hidden do_syssleep(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    BEGIN_TIMER(TR_Sleep);
     int Timeout;
     double tm, timeint, start, elapsed;
 
@@ -1324,6 +1323,5 @@ SEXP attribute_hidden do_syssleep(SEXP call, SEXP op, SEXP args, SEXP rho)
 	tm = 1e6*(timeint - elapsed);
     }
 
-    END_TIMER(TR_Sleep);
     return R_NilValue;
 }

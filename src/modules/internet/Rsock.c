@@ -48,8 +48,6 @@ extern void R_ProcessEvents(void);
 
 #include <R_ext/Print.h> // for REprintf
 
-#include "timeR.h"
-
 static int sock_inited = 0;
 
 static struct Sock_error_t perr;
@@ -86,12 +84,10 @@ static void check_init(void)
 
 void in_Rsockopen(int *port)
 {
-    BEGIN_TIMER(TR_Rsock);
     check_init();
     perr.error = 0;
     *port = enter_sock(Sock_open((Sock_port_t)*port, &perr));
     if(perr.error) REprintf("socket error: %s\n", strerror(perr.error));
-    END_TIMER(TR_Rsock);
 }
 
 void in_Rsocklisten(int *sockp, char **buf, int *len)
@@ -104,7 +100,6 @@ void in_Rsocklisten(int *sockp, char **buf, int *len)
 
 void in_Rsockconnect(int *port, char **host)
 {
-    BEGIN_TIMER(TR_Rsock);
     check_init();
 #ifdef DEBUG
     printf("connect to %d at %s\n",*port, *host);
@@ -114,7 +109,6 @@ void in_Rsockconnect(int *port, char **host)
 //    if(perr.h_error) REprintf("host lookup error: %s\n", hstrerror(perr.h_error));
     if(perr.error)
 	REprintf("socket error: %s\n", strerror(perr.error));
-    END_TIMER(TR_Rsock);
 }
 
 void in_Rsockclose(int *sockp)
@@ -124,7 +118,6 @@ void in_Rsockclose(int *sockp)
 
 void in_Rsockread(int *sockp, char **buf, int *maxlen)
 {
-    BEGIN_TIMER(TR_Rsock);
     check_init();
 #ifdef DEBUG
     printf("Reading from %d\n",*sockp);
@@ -132,12 +125,10 @@ void in_Rsockread(int *sockp, char **buf, int *maxlen)
     perr.error = 0;
     *maxlen = (int) Sock_read(*sockp, *buf, *maxlen, &perr);
     if(perr.error) REprintf("socket error: %s\n", strerror(perr.error));
-    END_TIMER(TR_Rsock);
 }
 
 void in_Rsockwrite(int *sockp, char **buf, int *start, int *end, int *len)
 {
-    BEGIN_TIMER(TR_Rsock);
     ssize_t n;
     if (*end > *len)
 	*end = *len;
@@ -145,7 +136,6 @@ void in_Rsockwrite(int *sockp, char **buf, int *start, int *end, int *len)
 	*start = 0;
     if (*end < *start) {
 	*len = -1;
-	END_TIMER(TR_Rsock);
 	return;
     }
     check_init();
@@ -156,7 +146,6 @@ void in_Rsockwrite(int *sockp, char **buf, int *start, int *end, int *len)
     n = Sock_write(*sockp, *buf + *start, *end - *start, &perr);
     *len = (int) n;
     if(perr.error) REprintf("socket error: %s\n", strerror(perr.error));
-    END_TIMER(TR_Rsock);
 }
 
 /* --------- for use in socket connections ---------- */

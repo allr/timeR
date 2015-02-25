@@ -63,20 +63,6 @@ static char *bin_names[] = {
     "allocS4",
     "GCInternal",
 
-    // arith.c
-    "doArith",
-
-    // array.c,
-    "doMatprod",
-
-    // connections.c
-    "gzFile",
-    "bzFile",
-    "xzFile",
-
-    // context.c
-    "onExits",
-
     // dotcode.c
     "dotExternalFull",
     "dotExternal",
@@ -87,15 +73,10 @@ static char *bin_names[] = {
     "dotFortranFull",
     "dotFortran",
 
-    // dounzip.c
-    "doUnzip",
-    "zipRead",
-
     // duplicate.c
     "Duplicate",
 
     // envir.c
-    "findVarInFrame3other",
     "SymLookup",
     "FunLookup",
 
@@ -103,51 +84,12 @@ static char *bin_names[] = {
     "Match",
     "evalList",
     "bcEval",
-    "bcEvalGetvar",
-    "bcEvalArith1",
-    "bcEvalArith2",
-    "bcEvalMath1",
-    "bcEvalRelop",
-    "bcEvalLogic",
-
-    // internet.c
-    "Download",
-
-    // logic.c
-    "doLogic",
-    "doLogic2",
-    "doLogic3",
 
     // main.c
     "Repl",
-    "SetupMainLoop",
-    "endMainloop",
 
     // names.c
-    "Install",
     "do_internal",
-
-    // relop.c
-    "doRelop",
-
-    // subassign.c
-    "doSubassign",
-    "doSubassign2",
-    "doSubassign3",
-
-    // subset.c
-    "doSubset",
-    "doSubset2",
-    "doSubset3",
-
-    // Rsock.c
-    "Rsock",
-
-    // sys-std.c
-    "Sleep",
-
-    // sys-unix.c
-    "System",
 
     // add your own timers here
 
@@ -492,7 +434,6 @@ static void timeR_dump_processed(FILE *fd, timeR_t total_runtime) {
 
 static void timeR_dump(FILE *fd) {
     // FIXME: Check for errors in fprintfs
-    struct rusage my_rusage;
     char strbuf[PATH_MAX+1];
     time_t now;
 
@@ -502,21 +443,6 @@ static void timeR_dump(FILE *fd) {
 
     now = time(NULL);
     fprintf(fd, "TraceDate\t%s", ctime(&now));
-
-    getrusage(RUSAGE_SELF, &my_rusage);
-    fprintf(fd, "RusageMaxResidentMemorySet\t%ld\n", my_rusage.ru_maxrss);
-    fprintf(fd, "RusageSharedMemSize\t%ld\n", my_rusage.ru_ixrss);
-    fprintf(fd, "RusageUnsharedDataSize\t%ld\n", my_rusage.ru_idrss);
-    fprintf(fd, "RusagePageReclaims\t%ld\n", my_rusage.ru_minflt);
-    fprintf(fd, "RusagePageFaults\t%ld\n", my_rusage.ru_majflt);
-    fprintf(fd, "RusageSwaps\t%ld\n", my_rusage.ru_nswap);
-    fprintf(fd, "RusageBlockInputOps\t%ld\n", my_rusage.ru_inblock);
-    fprintf(fd, "RusageBlockOutputOps\t%ld\n", my_rusage.ru_oublock);
-    fprintf(fd, "RusageIPCSends\t%ld\n", my_rusage.ru_msgsnd);
-    fprintf(fd, "RusageIPCRecv\t%ld\n", my_rusage.ru_msgrcv);
-    fprintf(fd, "RusageSignalsRcvd\t%ld\n", my_rusage.ru_nsignals);
-    fprintf(fd, "RusageVolnContextSwitches\t%ld\n", my_rusage.ru_nvcsw);
-    fprintf(fd, "RusageInvolnContextSwitches\t%ld\n", my_rusage.ru_nivcsw);
     fprintf(fd, "TimerUnit\t%ld %s\n", timeR_scale, TIME_R_UNIT);
 
     fprintf(fd, "#!LABEL\tsmall\tmedium\n");

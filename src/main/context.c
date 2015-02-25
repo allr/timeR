@@ -121,7 +121,6 @@
 
 void attribute_hidden R_run_onexits(RCNTXT *cptr)
 {
-    BEGIN_TIMER(TR_onExits);
     RCNTXT *c;
 
     for (c = R_GlobalContext; c != cptr; c = c->nextcontext) {
@@ -153,7 +152,6 @@ void attribute_hidden R_run_onexits(RCNTXT *cptr)
 	    UNPROTECT(1);
 	}
     }
-    END_TIMER(TR_onExits);
 }
 
 

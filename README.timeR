@@ -480,12 +480,6 @@ functions (see src/base/names.c in the R interpreter source code). In
 the output file these are listed as "<.Primitive>:name" or
 "<.Internal>:name" depending on their type.
 
-Some of the function table timers are effectively overridden by some
-of the statically defined timers (if enabled) as described below. In
-these cases, the self-time of the affected function table timers
-effectively only measures some timing overhead plus the call to the C
-function implementation.
-
 
 ### Statically defined timers ###
 
@@ -545,57 +539,6 @@ default file.
     will calculate the time spent collecting unused variables.
 
 
-#### arith.c ####
-
--   doArith
-
-    This timer tracks the run-time of the do_arith() C function. This
-    function handles many of the binary arithmetic operators used in
-    R, specifically "+", "-", "*", "/", "^", "%%" and "%/%". This
-    timer has a function table timer equivalent for each of the
-    operators. If a separate measurement of these operators is
-    desired, the doArith timer should be disabled and the
-    corresponding function table timers should be used instead.
-
-
-#### array.c ####
-
--   doMatprod
-
-    This timer tracks the run-time of the do_matprod() C function. This
-    function handles the operator "%*%" as well as the internals
-    "crossprod" and "tcrossprod". This timer has a function table
-    timer equivalent for each of these.
-
-
-#### connections.c ####
-
--   gzFile
-
-    This timer tracks the run-time of multiple functions that allow
-    access to gzip-compressed files as R connections.
-
--   bzFile
-
-    This timer tracks the run-time of multiple functions that allow
-    access to bzip2-compressed files as R connections.
-
--   xzFile
-
-    This timer tracks the run-time of multiple functions that allow
-    access to xz-compressed files as R connections.
-
-
-#### context.c ####
-
--   onExits
-
-    This timer tracks the run-time of the R_run_onexits C
-    function. This function is used when the R interpreter needs to
-    remove multiple entries from its context stack, e.g. when exiting
-    the interpreter or if an error occurs (which may not be fatal).
-
-
 #### dotcode.c ####
 
 The timers in dotcode.c all exist in two versions, one with the
@@ -631,20 +574,6 @@ is started immediately after the by-call-method timer is started.
     the ".Fortran" function.
 
 
-#### dounzip.c ####
-
--   doUnzip
-
-    This timer measures the time spent in the Runzip function, which
-    is called when the R function "unzip" is used with the unzip
-    parameter set to "internal".
-
--   zipRead
-
-    The zipRead timer measures two C-level functions that are used
-    when data is read from connections created with "unz".
-
-
 #### duplicate.c ####
 
 -   Duplicate
@@ -676,15 +605,6 @@ is started immediately after the by-call-method timer is started.
     of environments given its name. Part of the time of the function
     lookup is measured in the nested timer FunLookupEval.
 
--   findVarInFrame3other
-
-    The R interpreter has another function for looking up symbols in
-    environments called findVarInFrame3. Unlike the functions timed in
-    FunLookup and SymLookup it only searches in the single environment
-    which is passed to it. Calls to it occur less often than to the
-    other two lookup types, but for completeness it was also
-    instrumented with a dedicated timer.
-
 
 #### eval.c ####
 
@@ -699,49 +619,14 @@ is started immediately after the by-call-method timer is started.
     The evalList timer measures the time spent in the function of the
     same name.
 
--   bcEvalGetvar
+-   bcEval
 
-    This timer measures the time spent in the inlined variant of the
-    DO_GETVAR macro, which provides optimisations for looking up
-    variables and functions. The self time of this timer covers only
-    these optimisations. If they do not apply to a particular lookup
-    the macro uses the findVar function which is measured in SymLookup.
-
-FIXME: Describe bc* timers
-
-
-#### internet.c ####
-
--   Download
-
-    The download timer measures the time spent in the Rdownload C
-    function which is used when the _download.file_ R function is
-    called. The time accumulated on this timer can be used to factor
-    out download times from the total run-time of an R program.
-
-
-#### logic.c ####
-
--   doLogic
-
-    The doLogic timer measures the time spent in the R functions "&",
-    "|" and "!". If a separate measurement of these three functions is
-    desired, the doLogic timer should be disabled and the
-    corresponding function table timers should be used instead.
-
--   doLogic2
-
-    The doLogic2 timer measures the time spent in the R functions "&&"
-    and "||". If a separate measurement of these two functions is
-    desired, the doLogic timer should be disabled and the
-    corresponding function table timers should be used instead.
-
--   doLogic3
-
-    The doLogic3 timer measures the time spent in the R functions _all_
-    and _any_. If a separate measurement of these two functions is
-    desired, the doLogic timer should be disabled and the
-    corresponding function table timers should be used instead.
+    This timer measures the time spent in the bcEval C function, which
+    is the "interpreter" for byte-code compiled functions. This
+    includes some optimized function evaluations, for example
+    addition of two single-element vectors of type double is handled
+    directly instead of calling the "+" function from the function
+    table.
 
 
 #### main.c ####
@@ -753,28 +638,8 @@ FIXME: Describe bc* timers
     interactive session is timed, the idle time R spends waiting for
     user input is accumulated on this timer.
 
--   SetupMainLoop
-
-    This timer measures the time needed for initializing the R
-    interpreter, starting in the part of the code that is shared
-    between all of the frontends and ports. A small part of the
-    initialization (e.g. command line parsing) is not covered by this
-    timer but is included with the Startup timer (see
-    below). SetupMainLoop is a nested timer within Startup.
-
--   endMainloop
-
-    This timer measures the time needed for deinitializing the R
-    interpreter. It starts when the Repl loop exits and covers the
-    run-time up to the point where timeR writes its output file.
-
 
 #### names.c ####
-
--   Install
-
-    The Install timer measures the time needed to look up and insert
-    values into R's global symbol table.
 
 -   do_internal
 
@@ -785,101 +650,16 @@ FIXME: Describe bc* timers
     function call.
 
 
-#### relop.c ####
-
--   doRelop
-
-    The doRelop timer measures the time spent in the relational
-    operator functions of R (==, !=, <, <=, >=). If a seperate
-    measurement of these six functions is desired, the doRelop timer
-    should be disabled and the corresponding function table timers
-    should be used instead.
-
-
-#### subassign.c ####
-
--   doSubassign
-
-    FIXME
-
--   doSubassign2
-
-    FIXME
-
--   doSubassign3
-
-    FIXME
-
-#### subset.c ####
-
--   doSubset
-
-    The doSubset timer measures the time spent in the "[" subsetting
-    operator and the .subset primitive. The "[" operator has a small
-    untimed part that checks if the call needs to be dispatched to a
-    method instead of the default implementation. Both functions can
-    be measured separately if desired by disabling the doSubset timer
-    and using the corresponding function table timers instead.
-
--   doSubset2
-
-    The doSubset2 timer measures the time spent in the "[[" subsetting
-    operator and the .subset2 primitive. The "[[" operator has a small
-    untimed part that checks if the call needs to be dispatched to a
-    method instead of the default implementation. Both functions can
-    be measured separately if desired by disabling the doSubset2 timer
-    and using the corresponding function table timers instead.
-
--   doSubset3
-
-    The doSubset3 timer measures the time spent in the R_subset3_dflt
-    C function which is used for the "$" subsetting operator in R. In
-    byte-compiled R code, the function is called directly while in
-    interpreted R code an additional part outside of this timer exists
-    which checks if the arguments are valid and if the call needs to
-    be dispatched to a method instead of the default
-    implementation. The time needed for these checks can be found in
-    the function table timer "<.Primitive>:$".
-
-
-#### Rsock.c ####
-
--   Rsock
-
-    The Rsock timer measures the time spent in various socket
-    operations invoked from an R program (e.g. utils::read.socket,
-    utils::write.socket and related functions).
-
-
-#### sys-std.c ####
-
--   Sleep
-
-    This timer measures the time spent sleeping via the "sys.sleep"
-    function.
-
-
-#### sys-unix.c ####
-
--   System
-
-    This timer measures the time spent running external programs using
-    the "system" R function.
-
-
 #### other special timers ####
 
 -   Startup
 
     The startup timer measures the total time spent in interpreter
-    startup from a very early point to the start of the Repl loop. The
-    SetupMainLoop timer is nested within this timer, only small parts
-    are covered by Startup and nothing else, for example the parsing
-    of the command line options of the R interpreter.
+    startup from a very early point to the start of the Repl loop.
 
--   TotalRun-Time
+-   TotalRunTime
 
-    The TotalRun-Time field measures the total run-time of the R
+    The TotalRunTime field measures the total run-time of the R
     interpreter from the very start of the interpreter to the point
     where timeR writes its output file. Although you could generate
     the same value (modulo rounding errors) by adding up the self time

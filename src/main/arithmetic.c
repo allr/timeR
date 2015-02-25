@@ -39,8 +39,6 @@
 
 #include <Internal.h>
 
-#include "timeR.h"
-
 #define R_MSG_NA	_("NaNs produced")
 #define R_MSG_NONNUM_MATH _("non-numeric argument to mathematical function")
 
@@ -425,7 +423,6 @@ static R_INLINE SEXP ScalarValue2(SEXP x, SEXP y)
 
 SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_doArith);
     SEXP ans, arg1, arg2;
     int argc;
 
@@ -441,10 +438,8 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
     arg2 = CADR(args);
 
     if (ATTRIB(arg1) != R_NilValue || ATTRIB(arg2) != R_NilValue) {
-	if (DispatchGroup("Ops", call, op, args, env, &ans)) {
-	    END_TIMER(TR_doArith);
+	if (DispatchGroup("Ops", call, op, args, env, &ans))
 	    return ans;
-	}
     }
     else if (argc == 2) {
 	/* Handle some scaler operations immediately */
@@ -454,10 +449,10 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 		double x2 = REAL(arg2)[0];
 		ans = ScalarValue2(arg1, arg2);
 		switch (PRIMVAL(op)) {
-		case PLUSOP: REAL(ans)[0] = x1 + x2;  END_TIMER(TR_doArith); return ans;
-		case MINUSOP: REAL(ans)[0] = x1 - x2; END_TIMER(TR_doArith); return ans;
-		case TIMESOP: REAL(ans)[0] = x1 * x2; END_TIMER(TR_doArith); return ans;
-		case DIVOP: REAL(ans)[0] = x1 / x2;   END_TIMER(TR_doArith); return ans;
+		case PLUSOP: REAL(ans)[0] = x1 + x2; return ans;
+		case MINUSOP: REAL(ans)[0] = x1 - x2; return ans;
+		case TIMESOP: REAL(ans)[0] = x1 * x2; return ans;
+		case DIVOP: REAL(ans)[0] = x1 / x2; return ans;
 		}
 	    }
 	    else if (IS_SCALAR(arg2, INTSXP)) {
@@ -466,10 +461,10 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 		    (double) INTEGER(arg2)[0] : NA_REAL;
 		ans = ScalarValue1(arg1);
 		switch (PRIMVAL(op)) {
-		case PLUSOP: REAL(ans)[0] = x1 + x2;  END_TIMER(TR_doArith); return ans;
-		case MINUSOP: REAL(ans)[0] = x1 - x2; END_TIMER(TR_doArith); return ans;
-		case TIMESOP: REAL(ans)[0] = x1 * x2; END_TIMER(TR_doArith); return ans;
-		case DIVOP: REAL(ans)[0] = x1 / x2;   END_TIMER(TR_doArith); return ans;
+		case PLUSOP: REAL(ans)[0] = x1 + x2; return ans;
+		case MINUSOP: REAL(ans)[0] = x1 - x2; return ans;
+		case TIMESOP: REAL(ans)[0] = x1 * x2; return ans;
+		case DIVOP: REAL(ans)[0] = x1 / x2; return ans;
 		}
 	    }
 	}
@@ -480,10 +475,10 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 		double x2 = REAL(arg2)[0];
 		ans = ScalarValue1(arg2);
 		switch (PRIMVAL(op)) {
-		case PLUSOP: REAL(ans)[0] = x1 + x2;  END_TIMER(TR_doArith); return ans;
-		case MINUSOP: REAL(ans)[0] = x1 - x2; END_TIMER(TR_doArith); return ans;
-		case TIMESOP: REAL(ans)[0] = x1 * x2; END_TIMER(TR_doArith); return ans;
-		case DIVOP: REAL(ans)[0] = x1 / x2;   END_TIMER(TR_doArith); return ans;
+		case PLUSOP: REAL(ans)[0] = x1 + x2; return ans;
+		case MINUSOP: REAL(ans)[0] = x1 - x2; return ans;
+		case TIMESOP: REAL(ans)[0] = x1 * x2; return ans;
+		case DIVOP: REAL(ans)[0] = x1 / x2; return ans;
 		}
 	    }
 	    else if (IS_SCALAR(arg2, INTSXP)) {
@@ -495,23 +490,19 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
 		    ans = ScalarValue2(arg1, arg2);
 		    INTEGER(ans)[0] = R_integer_plus(x1, x2, &naflag);
 		    CHECK_INTEGER_OVERFLOW(call, ans, naflag);
-		    END_TIMER(TR_doArith);
 		    return ans;
 		case MINUSOP:
 		    ans = ScalarValue2(arg1, arg2);
 		    INTEGER(ans)[0] = R_integer_minus(x1, x2, &naflag);
 		    CHECK_INTEGER_OVERFLOW(call, ans, naflag);
-		    END_TIMER(TR_doArith);
 		    return ans;
 		case TIMESOP:
 		    ans = ScalarValue2(arg1, arg2);
 		    INTEGER(ans)[0] = R_integer_times(x1, x2, &naflag);
 		    CHECK_INTEGER_OVERFLOW(call, ans, naflag);
-		    END_TIMER(TR_doArith);
 		    return ans;
 		case DIVOP:
 		    ans = ScalarReal(R_integer_divide(x1, x2));
-		    END_TIMER(TR_doArith);
 		    return ans;
 		}
 	    }
@@ -520,36 +511,30 @@ SEXP attribute_hidden do_arith(SEXP call, SEXP op, SEXP args, SEXP env)
     else if (argc == 1) {
 	if (IS_SCALAR(arg1, REALSXP)) {
 	    switch(PRIMVAL(op)) {
-	    case PLUSOP: END_TIMER(TR_doArith); return(arg1);
+	    case PLUSOP: return(arg1);
 	    case MINUSOP:
 		ans = ScalarValue1(arg1);
 		REAL(ans)[0] = -REAL(arg1)[0];
-		END_TIMER(TR_doArith);
 		return ans;
 	    }
 	}
 	else if (IS_SCALAR(arg1, INTSXP)) {
 	    switch(PRIMVAL(op)) {
-	    case PLUSOP: END_TIMER(TR_doArith); return(arg1);
+	    case PLUSOP: return(arg1);
 	    case MINUSOP:
 		ans = ScalarValue1(arg1);
 		INTEGER(ans)[0] = INTEGER(arg1)[0] == NA_INTEGER ?
 		    NA_INTEGER : -INTEGER(arg1)[0];
-		END_TIMER(TR_doArith);
 		return ans;
 	    }
 	}
     }
 
-    if (argc == 2) {
-	ans = R_binary(call, op, arg1, arg2);
-	END_TIMER(TR_doArith);
-	return ans;
-    } else if (argc == 1) {
-	ans = R_unary(call, op, arg1);
-	END_TIMER(TR_doArith);
-	return ans;
-    } else
+    if (argc == 2)
+	return R_binary(call, op, arg1, arg2);
+    else if (argc == 1)
+	return R_unary(call, op, arg1);
+    else
 	errorcall(call,_("operator needs one or two arguments"));
     return ans;			/* never used; to keep -Wall happy */
 }

@@ -963,8 +963,6 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedenv)
 
     endcontext(&cntxt);
 
-    // FIXME: user function timer start was originally here
-
     /*  If we have a generic function we need to use the sysparent of
 	the generic as the sysparent of the method because the method
 	is a straight substitution of the generic.  */
@@ -3210,12 +3208,10 @@ static R_INLINE int bcStackScalar(R_bcstack_t *s, scalar_value_t *v)
     SKIP_OP(); \
     SETSTACK_LOGICAL(-2, ((a) op (b)) ? TRUE : FALSE);	\
     R_BCNodeStackTop--; \
-    END_TIMER(TR_bcEvalRelop); \
     NEXT(); \
 } while (0)
 
 # define FastRelop2(op,opval,opsym) do { \
-    BEGIN_TIMER(TR_bcEvalRelop); \
     scalar_value_t vx; \
     scalar_value_t vy; \
     int typex = bcStackScalar(R_BCNodeStackTop - 2, &vx); \
@@ -3234,8 +3230,6 @@ static R_INLINE int bcStackScalar(R_bcstack_t *s, scalar_value_t *v)
 	} \
     } \
     Relop2(opval, opsym); \
-    END_TIMER(TR_bcEvalRelop); \
-    NEXT(); \
 } while (0)
 
 static R_INLINE SEXP getPrimitive(SEXP symbol, SEXPTYPE type)
@@ -3318,6 +3312,7 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   SETSTACK(-1, CONS_NR(GETSTACK(-1), R_NilValue));		     \
   SETSTACK(-1, do_fun(call, getPrimitive(which, BUILTINSXP), \
 		      GETSTACK(-1), rho));		     \
+  NEXT(); \
 } while(0)
 
 #define Builtin2(do_fun,which,rho) do {		     \
@@ -3327,6 +3322,7 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   R_BCNodeStackTop--; \
   SETSTACK(-1, do_fun(call, getPrimitive(which, BUILTINSXP),	\
 		      GETSTACK(-1), rho));			\
+  NEXT(); \
 } while(0)
 
 #define NewBuiltin2(do_fun,opval,opsym,rho) do {	\
@@ -3335,14 +3331,13 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
   SEXP y = GETSTACK(-1); \
   SETSTACK(-2, do_fun(call, opval, opsym, x, y,rho));	\
   R_BCNodeStackTop--; \
+  NEXT(); \
 } while(0)
 
 #define Arith1(opsym) do {		\
-  BEGIN_TIMER(TR_bcEvalArith1); \
   SEXP call = VECTOR_ELT(constants, GETOP()); \
   SEXP x = GETSTACK(-1); \
   SETSTACK(-1, cmp_arith1(call, opsym, x, rho)); \
-  END_TIMER(TR_bcEvalArith1); \
   NEXT(); \
 } while(0)
 
@@ -3356,7 +3351,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
     SKIP_OP(); \
     SETSTACK_REAL(-2, (a) op (b)); \
     R_BCNodeStackTop--; \
-    END_TIMER(TR_bcEvalArith2); \
     NEXT(); \
 } while (0)
 
@@ -3366,7 +3360,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
 	SKIP_OP(); \
 	SETSTACK_INTEGER(-2, (int) dval); \
 	R_BCNodeStackTop--; \
-	END_TIMER(TR_bcEvalArith2); \
 	NEXT(); \
     } \
 } while(0)
@@ -3407,7 +3400,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
 #endif
 
 # define FastBinary(op,opval,opsym) do { \
-    BEGIN_TIMER(TR_bcEvalArith2); \
     scalar_value_t vx; \
     scalar_value_t vy; \
     int typex = bcStackScalar(R_BCNodeStackTop - 2, &vx); \
@@ -3429,8 +3421,6 @@ static SEXP cmp_arith2(SEXP call, int opval, SEXP opsym, SEXP x, SEXP y,
 	} \
     } \
     Arith2(opval, opsym); \
-    END_TIMER(TR_bcEvalArith2); \
-    NEXT(); \
 } while (0)
 
 #define BCNPUSH(v) do { \
@@ -3750,7 +3740,6 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
    rules other symbols, but as those are rare they are handled by the
    getvar() call. */
 #define DO_GETVAR(dd,keepmiss) do { \
-    BEGIN_TIMER(TR_bcEvalGetvar); \
     int sidx = GETOP(); \
     if (!dd && smallcache) { \
 	SEXP cell = GET_SMALLCACHE_BINDING_CELL(vcache, sidx); \
@@ -3767,7 +3756,6 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
 		SET_NAMED(value, 1); \
 	    R_Visible = TRUE; \
 	    BCNPUSH(value); \
-            END_TIMER(TR_bcEvalGetvar); \
 	    NEXT(); \
 	} \
 	if (cell != R_NilValue && ! IS_ACTIVE_BINDING(cell)) { \
@@ -3785,7 +3773,6 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
 		    SET_NAMED(value, 1);				\
 		R_Visible = TRUE;					\
 		BCNPUSH(value);						\
-                END_TIMER(TR_bcEvalGetvar);                             \
 		NEXT();							\
 	    }								\
 	}								\
@@ -3793,7 +3780,6 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
     SEXP symbol = VECTOR_ELT(constants, sidx);				\
     R_Visible = TRUE;							\
     BCNPUSH(getvar(symbol, rho, dd, keepmiss, vcache, sidx));		\
-    END_TIMER(TR_bcEvalGetvar);                                         \
     NEXT();								\
 } while (0)
 #else
@@ -4583,8 +4569,8 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
     OP(LDNULL, 0): R_Visible = TRUE; BCNPUSH(R_NilValue); NEXT();
     OP(LDTRUE, 0): R_Visible = TRUE; BCNPUSH(mkTrue()); NEXT();
     OP(LDFALSE, 0): R_Visible = TRUE; BCNPUSH(mkFalse()); NEXT();
-    OP(GETVAR, 1): { DO_GETVAR(FALSE, FALSE); }
-    OP(DDVAL, 1): { DO_GETVAR(TRUE, FALSE); }
+    OP(GETVAR, 1): DO_GETVAR(FALSE, FALSE);
+    OP(DDVAL, 1): DO_GETVAR(TRUE, FALSE);
     OP(SETVAR, 1):
       {
 	int sidx = GETOP();
@@ -4882,44 +4868,18 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
     OP(SUB, 1): FastBinary(-, MINUSOP, R_SubSym);
     OP(MUL, 1): FastBinary(*, TIMESOP, R_MulSym);
     OP(DIV, 1): FastBinary(/, DIVOP, R_DivSym);
-    OP(EXPT, 1): {
-	BEGIN_TIMER(TR_bcEvalArith2);
-	Arith2(POWOP, R_ExptSym);
-	END_TIMER(TR_bcEvalArith2);
-	NEXT();
-      }
-    OP(SQRT, 1): {
-	BEGIN_TIMER(TR_bcEvalMath1);
-	Math1(R_SqrtSym);
-	END_TIMER(TR_bcEvalMath1);
-	NEXT();
-      }
-    OP(EXP, 1): {
-	BEGIN_TIMER(TR_bcEvalMath1);
-	Math1(R_ExpSym);
-	END_TIMER(TR_bcEvalMath1);
-	NEXT();
-      }
+    OP(EXPT, 1): Arith2(POWOP, R_ExptSym);
+    OP(SQRT, 1): Math1(R_SqrtSym);
+    OP(EXP, 1): Math1(R_ExpSym);
     OP(EQ, 1): FastRelop2(==, EQOP, R_EqSym);
     OP(NE, 1): FastRelop2(!=, NEOP, R_NeSym);
     OP(LT, 1): FastRelop2(<, LTOP, R_LtSym);
     OP(LE, 1): FastRelop2(<=, LEOP, R_LeSym);
     OP(GE, 1): FastRelop2(>=, GEOP, R_GeSym);
     OP(GT, 1): FastRelop2(>, GTOP, R_GtSym);
-    OP(AND, 1): {
-	Builtin2(do_logic, R_AndSym, rho);
-	NEXT();
-      }
-    OP(OR, 1): {
-	Builtin2(do_logic, R_OrSym, rho);
-	NEXT();
-      }
-    OP(NOT, 1): {
-	BEGIN_TIMER(TR_bcEvalLogic);
-	Builtin1(do_logic, R_NotSym, rho);
-	END_TIMER(TR_bcEvalLogic);
-	NEXT();
-      }
+    OP(AND, 1): Builtin2(do_logic, R_AndSym, rho);
+    OP(OR, 1): Builtin2(do_logic, R_OrSym, rho);
+    OP(NOT, 1): Builtin1(do_logic, R_NotSym, rho);
     OP(DOTSERR, 0): error(_("'...' used in an incorrect context"));
     OP(STARTASSIGN, 1):
       {
@@ -5086,8 +5046,8 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	R_BCNodeStackTop -= 1;
 	NEXT();
     }
-    OP(GETVAR_MISSOK, 1): { DO_GETVAR(FALSE, TRUE); }
-    OP(DDVAL_MISSOK, 1): { DO_GETVAR(TRUE, TRUE); }
+    OP(GETVAR_MISSOK, 1): DO_GETVAR(FALSE, TRUE);
+    OP(DDVAL_MISSOK, 1): DO_GETVAR(TRUE, TRUE);
     OP(VISIBLE, 0): R_Visible = TRUE; NEXT();
     OP(SETVAR2, 1):
       {

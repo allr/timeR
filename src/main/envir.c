@@ -986,7 +986,7 @@ void R_SetVarLocValue(R_varloc_t vl, SEXP value)
   symbol in this frame (FALSE).  This is used for get() and exists().
 */
 
-static SEXP findVarInFrame3internal(SEXP rho, SEXP symbol, Rboolean doGet)
+SEXP findVarInFrame3(SEXP rho, SEXP symbol, Rboolean doGet)
 {
     int hashcode;
     SEXP frame, c;
@@ -1035,16 +1035,6 @@ static SEXP findVarInFrame3internal(SEXP rho, SEXP symbol, Rboolean doGet)
 	return(R_HashGet(hashcode, symbol, HASHTAB(rho)));
     }
     return R_UnboundValue;
-}
-
-SEXP findVarInFrame3(SEXP rho, SEXP symbol, Rboolean doGet) {
-    SEXP ans;
-
-    BEGIN_TIMER(TR_findVarInFrame3other);
-    ans = findVarInFrame3internal(rho, symbol, doGet);
-    END_TIMER(TR_findVarInFrame3other);
-
-    return ans;
 }
 
 /* This variant of findVarinFrame3 is needed to avoid running active
@@ -1156,7 +1146,7 @@ SEXP findVar(SEXP symbol, SEXP rho)
        will also handle all frames if rho is a global frame other than
        R_GlobalEnv */
     while (rho != R_GlobalEnv && rho != R_EmptyEnv) {
-	vl = findVarInFrame3internal(rho, symbol, TRUE /* get rather than exists */);
+	vl = findVarInFrame3(rho, symbol, TRUE /* get rather than exists */);
 	if (vl != R_UnboundValue) {
 	    END_TIMER(TR_SymLookup);
 	    return (vl);
@@ -1171,7 +1161,7 @@ SEXP findVar(SEXP symbol, SEXP rho)
     return ans;
 #else
     while (rho != R_EmptyEnv) {
-	vl = findVarInFrame3internal(rho, symbol, TRUE);
+	vl = findVarInFrame3(rho, symbol, TRUE);
 	if (vl != R_UnboundValue) {
 	    END_TIMER(TR_SymLookup);
 	    return (vl);
@@ -1200,7 +1190,7 @@ findVar1(SEXP symbol, SEXP rho, SEXPTYPE mode, int inherits)
     BEGIN_TIMER(TR_SymLookup);
     SEXP vl;
     while (rho != R_EmptyEnv) {
-	vl = findVarInFrame3internal(rho, symbol, TRUE);
+	vl = findVarInFrame3(rho, symbol, TRUE);
 	if (vl != R_UnboundValue) {
 	    if (mode == ANYSXP) {
 		END_TIMER(TR_SymLookup);
@@ -1251,7 +1241,7 @@ findVar1mode(SEXP symbol, SEXP rho, SEXPTYPE mode, int inherits,
 	if (! doGet && mode == ANYSXP)
 	    vl = existsVarInFrame(rho, symbol) ? R_NilValue : R_UnboundValue;
 	else
-	    vl = findVarInFrame3internal(rho, symbol, doGet);
+	    vl = findVarInFrame3(rho, symbol, doGet);
 
 	if (vl != R_UnboundValue) {
 	    if (mode == ANYSXP) {
@@ -1418,9 +1408,9 @@ SEXP findFun(SEXP symbol, SEXP rho)
 	    vl = findGlobalVar(symbol);
 #endif
 	else
-	    vl = findVarInFrame3internal(rho, symbol, TRUE);
+	    vl = findVarInFrame3(rho, symbol, TRUE);
 #else
-	vl = findVarInFrame3internal(rho, symbol, TRUE);
+	vl = findVarInFrame3(rho, symbol, TRUE);
 #endif
 	if (vl != R_UnboundValue) {
 	    if (TYPEOF(vl) == PROMSXP) {

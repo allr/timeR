@@ -718,8 +718,6 @@ void setup_Rmainloop(void)
     char deferred_warnings[11][250];
     volatile int ndeferred_warnings = 0;
 
-    BEGIN_TIMER(TR_SetupMainLoop);
-
     /* In case this is a silly limit: 2^32 -3 has been seen and
      * casting to intptr_r relies on this being smaller than 2^31 on a
      * 32-bit platform. */
@@ -1010,7 +1008,6 @@ void setup_Rmainloop(void)
     /* trying to do this earlier seems to run into bootstrapping issues. */
     R_init_jit_enabled();
     R_Is_Running = 2;
-    END_TIMER(TR_SetupMainLoop);
 }
 
 extern SA_TYPE SaveAction; /* from src/main/startup.c */
@@ -1036,7 +1033,6 @@ void run_Rmainloop(void)
     R_GlobalContext = R_ToplevelContext = R_SessionContext = &R_Toplevel;
     R_ReplConsole(R_GlobalEnv, 0, 0);
     END_TIMER(TR_Repl);
-    BEGIN_TIMER(TR_endMainloop);
     end_Rmainloop(); /* must go here */
 }
 

@@ -88,8 +88,6 @@
 #include <Internal.h>
 #include <R_ext/RS.h> /* for test of S4 objects */
 
-#include "timeR.h"
-
 /* This version of SET_VECTOR_ELT does not increment the REFCNT for
    the new vector->element link. It assumes that the old vector is
    becoming garbage and so it's references become no longer
@@ -1433,7 +1431,6 @@ SEXP attribute_hidden do_subassign(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 SEXP attribute_hidden do_subassign_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    BEGIN_TIMER(TR_doSubassign);
     SEXP subs, x, y;
     int nsubs, oldtype; Rboolean S4;
 
@@ -1460,7 +1457,6 @@ SEXP attribute_hidden do_subassign_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
     else if (xlength(x) == 0) {
 	if (xlength(y) == 0) {
 	    UNPROTECT(1);
-	    END_TIMER(TR_doSubassign);
 	    return(x);
 	}
 	else {
@@ -1520,7 +1516,6 @@ SEXP attribute_hidden do_subassign_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
     UNPROTECT(2);
     SET_NAMED(x, 0);
     if(S4) SET_S4_OBJECT(x);
-    END_TIMER(TR_doSubassign);
     return x;
 }
 
@@ -1571,7 +1566,6 @@ SEXP attribute_hidden do_subassign2(SEXP call, SEXP op, SEXP args, SEXP rho)
 SEXP attribute_hidden
 do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    BEGIN_TIMER(TR_doSubassign2);
     SEXP dims, indx, names, newname, subs, x, xtop, xup, y, thesub = R_NilValue, xOrig = R_NilValue;
     int i, ndims, nsubs, which, len = 0 /* -Wall */;
     R_xlen_t  stretch, offset, off = -1; /* -Wall */
@@ -1589,7 +1583,6 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
     if (isNull(x)) {
 	if (isNull(y)) {
 	    UNPROTECT(1);
-	    END_TIMER(TR_doSubassign2);
 	    return x;
 	}
 	UNPROTECT(1);
@@ -1624,7 +1617,6 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 	    error(_("wrong args for environment subassignment"));
 	defineVar(installTrChar(STRING_ELT(CAR(subs), 0)), y, x);
 	UNPROTECT(1);
-	END_TIMER(TR_doSubassign2);
 	return(S4 ? xOrig : x);
     }
 
@@ -1659,7 +1651,6 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
 		if(recursed) SET_VECTOR_ELT(xup, off, x);
 		else xtop = x;
 		UNPROTECT(1);
-		END_TIMER(TR_doSubassign2);
 		return xtop;
 	    }
 	    if (offset < 0)
@@ -1886,7 +1877,6 @@ do_subassign2_dflt(SEXP call, SEXP op, SEXP args, SEXP rho)
     UNPROTECT(1);
     SET_NAMED(xtop, 0);
     if(S4) SET_S4_OBJECT(xtop);
-    END_TIMER(TR_doSubassign2);
     return xtop;
 }
 
@@ -1931,7 +1921,6 @@ SEXP attribute_hidden do_subassign3(SEXP call, SEXP op, SEXP args, SEXP env)
 /* used in "$<-" (above) and methods_list_dispatch.c */
 SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
 {
-    BEGIN_TIMER(TR_doSubassign3);
     SEXP t;
     PROTECT_INDEX pvalidx, pxidx;
     Rboolean maybe_duplicate=FALSE;
@@ -2101,6 +2090,5 @@ SEXP R_subassign3_dflt(SEXP call, SEXP x, SEXP nlist, SEXP val)
 	x = xS4; /* x was an env't, the data slot of xS4 */
     SET_NAMED(x, 0);
     if(S4) SET_S4_OBJECT(x);
-    END_TIMER(TR_doSubassign3);
     return x;
 }

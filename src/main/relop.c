@@ -28,8 +28,6 @@
 #include <Rmath.h>
 #include <errno.h>
 
-#include "timeR.h"
-
 /* interval at which to check interrupts, a guess */
 #define NINTERRUPT 10000000
 
@@ -108,8 +106,6 @@ SEXP attribute_hidden do_relop(SEXP call, SEXP op, SEXP args, SEXP env)
 
 SEXP attribute_hidden do_relop_dflt(SEXP call, SEXP op, SEXP x, SEXP y)
 {
-    BEGIN_TIMER(TR_doRelop);
-
     SEXP klass = R_NilValue, dims, tsp = R_NilValue, xnames, ynames;
     R_xlen_t nx, ny;
     int xarray, yarray, xts, yts;
@@ -172,7 +168,6 @@ SEXP attribute_hidden do_relop_dflt(SEXP call, SEXP op, SEXP x, SEXP y)
 	    UNPROTECT(1);
 	}
 	UNPROTECT(2);
-	END_TIMER(TR_doRelop);
 	return ans;
     }
 
@@ -201,7 +196,6 @@ SEXP attribute_hidden do_relop_dflt(SEXP call, SEXP op, SEXP x, SEXP y)
     if (!isVector(x) || !isVector(y)) {
 	if (isNull(x) || isNull(y)) {
 	    UNPROTECT(2);
-	    END_TIMER(TR_doRelop);
 	    return allocVector(LGLSXP,0);
 	}
 	errorcall(call,
@@ -216,7 +210,6 @@ SEXP attribute_hidden do_relop_dflt(SEXP call, SEXP op, SEXP x, SEXP y)
 
     if (XLENGTH(x) <= 0 || XLENGTH(y) <= 0) {
 	UNPROTECT(2);
-	END_TIMER(TR_doRelop);
 	return allocVector(LGLSXP, 0);
     }
 
@@ -324,7 +317,6 @@ SEXP attribute_hidden do_relop_dflt(SEXP call, SEXP op, SEXP x, SEXP y)
     }
 
     UNPROTECT(6);
-    END_TIMER(TR_doRelop);
     return x;
 }
 

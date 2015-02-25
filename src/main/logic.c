@@ -25,8 +25,6 @@
 #include <Defn.h>
 #include <Internal.h>
 
-#include "timeR.h"
-
 /* interval at which to check interrupts, a guess */
 #define NINTERRUPT 10000000
 
@@ -40,7 +38,6 @@ static SEXP binaryLogic2(int code, SEXP s1, SEXP s2);
 /* & | ! */
 SEXP attribute_hidden do_logic(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_doLogic);
     SEXP ans, arg1, arg2;
     int argc;
 
@@ -56,28 +53,20 @@ SEXP attribute_hidden do_logic(SEXP call, SEXP op, SEXP args, SEXP env)
     arg2 = CADR(args);
 
     if (ATTRIB(arg1) != R_NilValue || ATTRIB(arg2) != R_NilValue) {
-	if (DispatchGroup("Ops",call, op, args, env, &ans)) {
-	    END_TIMER(TR_doLogic);
+	if (DispatchGroup("Ops",call, op, args, env, &ans))
 	    return ans;
-	}
     }
     else if (argc == 1 && IS_SCALAR(arg1, LGLSXP)) {
 	/* directly handle '!' operator for simple logical scalars. */
         int v = LOGICAL(arg1)[0];
-        ans = ScalarLogical(v == NA_LOGICAL ? v : ! v);
-	END_TIMER(TR_doLogic);
-	return ans;
+        return ScalarLogical(v == NA_LOGICAL ? v : ! v);
     }
 
-    if (argc == 1) {
-	ans = lunary(call, op, arg1);
-	END_TIMER(TR_doLogic);
-	return ans;
-    } else if (argc == 2) {
-	ans = lbinary(call, op, args);
-	END_TIMER(TR_doLogic);
-	return ans;
-    } else
+    if (argc == 1)
+	return lunary(call, op, arg1);
+    else if (argc == 2)
+	return lbinary(call, op, args);
+    else
 	error(_("binary operations require two arguments"));
     return R_NilValue;	/* for -Wall */
 }
@@ -257,8 +246,6 @@ static SEXP lunary(SEXP call, SEXP op, SEXP arg)
 SEXP attribute_hidden do_logic2(SEXP call, SEXP op, SEXP args, SEXP env)
 {
 /*  &&	and  ||	 */
-    BEGIN_TIMER(TR_doLogic2);
-
     SEXP s1, s2;
     int x1, x2;
     int ans = FALSE;
@@ -305,9 +292,7 @@ SEXP attribute_hidden do_logic2(SEXP call, SEXP op, SEXP args, SEXP env)
 		ans = x2;
 	}
     }
-    ans = ScalarLogical(ans);
-    END_TIMER(TR_doLogic2);
-    return ans;
+    return ScalarLogical(ans);
 }
 
 static SEXP binaryLogic(int code, SEXP s1, SEXP s2)
@@ -426,8 +411,6 @@ extern SEXP fixup_NaRm(SEXP args); /* summary.c */
 /* all, any */
 SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
 {
-    BEGIN_TIMER(TR_doLogic3);
-
     SEXP ans, s, t, call2;
     int narm, has_na = 0;
     /* initialize for behavior on empty vector
@@ -442,7 +425,6 @@ SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
 
     if (DispatchGroup("Summary", call2, op, args, env, &ans)) {
 	UNPROTECT(2);
-	END_TIMER(TR_doLogic3);
 	return(ans);
     }
 
@@ -477,7 +459,6 @@ SEXP attribute_hidden do_logic3(SEXP call, SEXP op, SEXP args, SEXP env)
         } else has_na = 1;
     }
     UNPROTECT(2);
-    END_TIMER(TR_doLogic3);
     return has_na ? ScalarLogical(NA_LOGICAL) : ScalarLogical(val);
 }
 #undef _OP_ALL
