@@ -37,6 +37,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <Defn.h>
 #include "timeR.h"
@@ -124,6 +125,10 @@ static unsigned int bin_count;
 static unsigned int first_userfn_idx;
 tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
+// fork support
+static long *childpids;
+static unsigned int childpid_count;
+static unsigned int childpid_max;
 
 /* external function timing */
 typedef struct {
@@ -606,11 +611,43 @@ void timeR_finish(void) {
     if (timeR_output_file == NULL)
 	return;
 
-    fd = fopen(timeR_output_file, "w");
+    char str[1024];
+
+    if (R_isForkedChild) {
+      snprintf(str, 1023, "%s-%d", timeR_output_file, getpid());
+    } else {
+      strcpy(str, timeR_output_file);
+    }
+
+    fd = fopen(str, "w");
     if (fd == NULL)
 	return;
 
     timeR_dump(fd);
+
+    /* if on parent: combine all child summary files */
+    if (childpid_count) {
+      fprintf(fd, "childcount\t%d\n", childpid_count);
+      for (unsigned int i = 0; i < childpid_count; i++) {
+        sprintf(str, "%s-%ld", timeR_output_file, childpids[i]);
+
+        FILE *childfd = fopen(str, "r");
+        if (!childfd) {
+          fprintf(stderr, "ERROR: Unable to open %s: %s\n", str, strerror(errno));
+          abort();
+        }
+
+        unlink(str);
+
+        fprintf(fd, "#!CHILD\t%d\n", i+1);
+
+        while (fgets(str, sizeof(str), childfd)) {
+          fprintf(fd, "%s", str);
+        }
+
+        fclose(childfd);
+      }
+    }
 
     // FIXME: Check for errors
     fclose(fd);
@@ -845,4 +882,68 @@ tr_measureptr_t timeR_begin_external(char *name, void *addr) { // FIXME: should 
     END_TIMER(TR_HashOverhead);
 
     return timeR_begin_timer(bin_id);
+}
+
+static void timeR_reset_all(void) {
+  /* reset all bins */
+  for (unsigned int i = TR_HashOverhead; i < next_bin; i++) {
+    tr_bin_t *bin = timeR_bins + i;
+
+    if (bin->name[0] != 0) {
+      bin->sum_self  = 0;
+      bin->sum_total = 0;
+      bin->starts    = 0;
+      bin->aborts    = 0;
+      bin->bcode     = 0;
+    }
+  }
+
+  assert(timeR_current_mblock == timeR_measureblocks[0]); // we shouldn't have many active timers here
+
+  /* reset all stack entries */
+  start_time = tr_now();
+
+  for (unsigned int i = 1; i < timeR_next_mindex; i++) {
+    timeR_current_mblock[i].start     = start_time;
+    timeR_current_mblock[i].lower_sum = 0;
+  }
+}
+
+void timeR_forked(long childpid) {
+  if (childpid == 0) {
+    /* in child */
+    if (R_isForkedChild) {
+      fprintf(stderr, "*** ERROR: Forking from child processes is currently not supported!\n");
+      abort();
+    }
+
+    timeR_reset_all();
+    free(childpids);
+    childpids      = NULL;
+    childpid_max   = 0;
+    childpid_count = 0;
+    return;
+  }
+
+  /* in parent, add child to list of known PIDs */
+  if (childpids == NULL) {
+    childpid_max = 100;
+    childpids = malloc(childpid_max * sizeof(long));
+    if (childpids == NULL) {
+      perror("malloc childpids");
+      abort();
+    }
+  }
+
+  if (childpid_count >= childpid_max) {
+    long *newpids = realloc(childpids, 2*childpid_max*sizeof(long));
+    if (newpids == NULL) {
+      perror("realloc childpids");
+      abort();
+    }
+    childpids = newpids;
+    childpid_max *= 2;
+  }
+
+  childpids[childpid_count++] = childpid;
 }

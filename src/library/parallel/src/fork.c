@@ -44,6 +44,8 @@
 #include <Rinternals.h>
 #include <Rinterface.h> /* for R_Interactive */
 
+#include <timeR.h>
+
 #ifndef FILE_LOG
 /* use printf instead of Rprintf for debugging to avoid forked console interactions */
 #define Dprintf printf
@@ -277,6 +279,7 @@ SEXP mc_fork(SEXP sEstranged)
 	error(_("unable to fork, possible reason: %s"), strerror(errno));
     }
     res_i[0] = (int) pid;
+    timeR_forked(pid);
     if (pid == 0) { /* child */
 	R_isForkedChild = 1;
 	/* don't track any children of the child by default */
@@ -727,6 +730,7 @@ SEXP mc_exit(SEXP sRes)
 #ifdef MC_DEBUG
     Dprintf("child %d: exiting\n", getpid());
 #endif
+    timeR_finish();
     _exit(res);
     error(_("'mcexit' failed"));
     return R_NilValue;

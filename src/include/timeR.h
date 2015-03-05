@@ -77,6 +77,8 @@ void timeR_init_early(void);
 void timeR_startup_done(void);
 void timeR_finish(void);
 
+void timeR_forked(long childpid);
+
 /* exposed internal state for the fast path inlines */
 extern tr_timer_t  *timeR_measureblocks[TIME_R_MAX_MBLOCKS];
 extern tr_timer_t  *timeR_current_mblock;
@@ -190,6 +192,7 @@ void         timeR_name_bin(unsigned int bin_id, const char *name);
 void         timeR_name_bin_anonfunc(unsigned int bin_id, const char *file,
                                      unsigned int line, unsigned int pos);
 void         timeR_release(tr_measureptr_t *marker);
+
 
 static inline const char *timeR_get_bin_name(unsigned int bin_id) {
   return timeR_bins[bin_id].name;
