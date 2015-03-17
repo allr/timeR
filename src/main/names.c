@@ -949,6 +949,8 @@ FUNTAB R_FunTab[] =
 {"La_svd_cmplx",do_lapack,     	401,	11,	5,	{PP_FUNCALL, PREC_FN,	0}},
 {"La_version",	do_lapack,     	1000,	11,	0,	{PP_FUNCALL, PREC_FN,	0}},
 
+{"traceR_idlemark", do_idlemark,0,     101,     1,      {PP_FUNCALL, PREC_FN,   0}},
+
 {NULL,		NULL,		0,	0,	0,	{PP_INVALID, PREC_FN,	0}},
 };
 
@@ -1269,4 +1271,12 @@ SEXP attribute_hidden do_tilde(SEXP call, SEXP op, SEXP args, SEXP rho)
 const char *getPRIMNAME(SEXP object)
 {
     return PRIMNAME(object);
+}
+
+SEXP do_idlemark(SEXP call, SEXP op, SEXP args, SEXP rho) {
+  checkArity(op, args);
+  int i = asLogical(CAR(args));
+  if (i != NA_LOGICAL)
+    timeR_idlemark(!!i);
+  return R_NilValue;
 }

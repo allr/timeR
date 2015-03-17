@@ -144,6 +144,17 @@ static unsigned int extfunc_map_entries;
 /* additional hardcoded timers */
 static tr_measureptr_t startup_mptr;
 static timeR_t         start_time, end_time;
+static struct timeval  start_time_us, end_time_us;
+
+static unsigned long   idle_start_us, idle_end_us;
+static bool            in_idle;
+typedef struct {
+  unsigned long start;
+  unsigned long end;
+} idletime_t;
+static idletime_t *idletimes;
+static unsigned int idletime_cur, idletime_max;
+
 
 char *timeR_output_file;
 int   timeR_output_raw     = 0;
@@ -470,6 +481,17 @@ static void timeR_dump(FILE *fd) {
 	    (timeR_bins[TR_OverheadTest2].sum_self / (double)timeR_bins[TR_OverheadTest2].starts) / timeR_scale,
 	    (timeR_bins[TR_OverheadTest1].sum_self / (double)timeR_bins[TR_OverheadTest1].starts) / timeR_scale);
     fprintf(fd, "TotalRuntime\t%ld\n", (unsigned long)(end_time - start_time));
+    fprintf(fd, "StartTimeUsec\t%ld\n", start_time_us.tv_sec * 1000000UL + start_time_us.tv_usec);
+    fprintf(fd, "EndTimeUsec\t%ld\n", end_time_us.tv_sec * 1000000UL + end_time_us.tv_usec);
+
+    if (idletime_cur > 0) {
+      // FIXME: Idle-at-end
+      fprintf(fd, "#!LABEL\tnum\tstart\tend\n");
+      fprintf(fd, "#!TABLE\tIdleTime\tIdleTimes\n");
+      for (unsigned int i = 0; i < idletime_cur; i++) {
+        fprintf(fd, "IdleTime\t%d\t%ld\t%ld\n", i, idletimes[i].start, idletimes[i].end);
+      }
+    }
 
     if (timeR_output_raw)
 	timeR_dump_raw(fd);
@@ -552,6 +574,7 @@ void timeR_init_early(void) {
 
     /* measure the startup time of R */
     startup_mptr = timeR_begin_timer(TR_Startup);
+    gettimeofday(&start_time_us, NULL);
     start_time   = tr_now();
 }
 
@@ -598,6 +621,7 @@ void timeR_finish(void) {
     }
 
     end_time = tr_now();
+    gettimeofday(&end_time_us, NULL);
 
     /* run a second overhead test with a large number of iterations */
     for (i = 0; i < 1000; i++) {
@@ -907,6 +931,12 @@ static void timeR_reset_all(void) {
     timeR_current_mblock[i].start     = start_time;
     timeR_current_mblock[i].lower_sum = 0;
   }
+
+  free(idletimes);
+  idletimes = NULL;
+  idletime_cur = 0;
+  idletime_max = 0;
+  in_idle = false;
 }
 
 void timeR_forked(long childpid) {
@@ -922,6 +952,7 @@ void timeR_forked(long childpid) {
     childpids      = NULL;
     childpid_max   = 0;
     childpid_count = 0;
+    gettimeofday(&start_time_us, NULL);
     return;
   }
 
@@ -946,4 +977,37 @@ void timeR_forked(long childpid) {
   }
 
   childpids[childpid_count++] = childpid;
+}
+
+void timeR_idlemark(int state) {
+  if ((state && in_idle) || (!state && !in_idle)) {
+    fprintf(stderr, "=== Warning: idlemark received %d while already in that state\n", state);
+    return;
+  }
+
+  struct timeval now;
+  gettimeofday(&now, NULL);
+
+  if (state) {
+    idle_start_us = now.tv_sec * 1000000UL + now.tv_usec;
+    in_idle = true;
+  } else {
+    if (idletime_cur >= idletime_max) {
+      idletime_max += 100;
+      idletime_t *newtimes = realloc(idletimes, idletime_max * sizeof(idletime_t));
+      if (!newtimes) {
+        fprintf(stderr, "ERROR: realloc idletimes failed\n");
+        abort();
+      }
+
+      idletimes = newtimes;
+    }
+
+    idle_end_us = now.tv_sec * 1000000UL + now.tv_usec;
+    idletimes[idletime_cur].start = idle_start_us;
+    idletimes[idletime_cur].end   = idle_end_us;
+    idletime_cur++;
+
+    in_idle = false;
+  }
 }

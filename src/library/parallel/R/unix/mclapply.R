@@ -75,6 +75,7 @@ mclapply <- function(X, FUN, ..., mc.preschedule = TRUE, mc.set.seed = TRUE,
             jobsp <- processID(jobs)
             ent[jobid] <- TRUE
             has.errors <- 0L
+            traceR_idlemark(TRUE)
             while (!all(fin)) {
                 s <- selectChildren(jobs, 0.5)
                 if (is.null(s)) break   # no children -> no hope
@@ -105,6 +106,7 @@ mclapply <- function(X, FUN, ..., mc.preschedule = TRUE, mc.set.seed = TRUE,
                         }
                     }
             }
+            traceR_idlemark(FALSE)
         }
         if (has.errors)
             warning(gettextf("%d function calls resulted in an error",

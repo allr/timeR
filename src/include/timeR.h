@@ -193,6 +193,7 @@ void         timeR_name_bin_anonfunc(unsigned int bin_id, const char *file,
                                      unsigned int line, unsigned int pos);
 void         timeR_release(tr_measureptr_t *marker);
 
+void         timeR_idlemark(int state);
 
 static inline const char *timeR_get_bin_name(unsigned int bin_id) {
   return timeR_bins[bin_id].name;
@@ -325,6 +326,8 @@ static inline const char * timeR_get_bin_name(unsigned int bin_id) {
 }
 
 static inline void timeR_mark_bcode(unsigned int bin_id) {}
+
+static inline void timeR_idlemark(int state) {}
 
   // avoids an #ifdef in eval.c
 #  define TR_UserFuncFallback 0
