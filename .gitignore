@@ -158,3 +158,5 @@ autom4te.cache
 acinclude.m4
 aclocal.m4
 .RData
+doc/NEWS
+doc/NEWS.pdf
