@@ -28,6 +28,7 @@
 #define TIMER_INCLUDE_STATE_ARRAY
 
 #include <sys/time.h>
+#include <sys/times.h>
 #include <sys/resource.h>
 #include <assert.h>
 #include <limits.h>
@@ -126,9 +127,9 @@ static unsigned int first_userfn_idx;
 tr_bin_t *timeR_bins;  // is realloc()'d, no pointers to elements please!
 
 // fork support
-static long *childpids;
-static unsigned int childpid_count;
-static unsigned int childpid_max;
+static char **childfiles;
+static unsigned int childfiles_count;
+static unsigned int childfiles_max;
 
 /* external function timing */
 typedef struct {
@@ -163,6 +164,33 @@ int   timeR_exclude_init   = 0;
 long  timeR_scale          = 1;
 
 /*** internal functions ***/
+
+static void add_childfile(char *orig_name) {
+  char *name = strdup(orig_name);
+  if (!name)
+    abort();
+
+  if (childfiles == NULL) {
+    childfiles_max = 100;
+    childfiles = malloc(childfiles_max * sizeof(long));
+    if (childfiles == NULL) {
+      perror("malloc childfiles");
+      abort();
+    }
+  }
+
+  if (childfiles_count >= childfiles_max) {
+    char **newfiles = realloc(childfiles, 2*childfiles_max*sizeof(long));
+    if (newfiles == NULL) {
+      perror("realloc childfiles");
+      abort();
+    }
+    childfiles = newfiles;
+    childfiles_max *= 2;
+  }
+
+  childfiles[childfiles_count++] = name;
+}
 
 static int compare_binnames(const void *a_void, const void *b_void) {
     const tr_bin_t * const *a = a_void;
@@ -484,6 +512,12 @@ static void timeR_dump(FILE *fd) {
     fprintf(fd, "StartTimeUsec\t%ld\n", start_time_us.tv_sec * 1000000UL + start_time_us.tv_usec);
     fprintf(fd, "EndTimeUsec\t%ld\n", end_time_us.tv_sec * 1000000UL + end_time_us.tv_usec);
 
+    struct tms ustimes;
+    long ticks_per_sec = sysconf(_SC_CLK_TCK);
+    times(&ustimes);
+    fprintf(fd, "UserTime\t%f\n", ustimes.tms_utime / (double)ticks_per_sec);
+    fprintf(fd, "SystemTime\t%f\n", ustimes.tms_stime / (double)ticks_per_sec);
+
     if (idletime_cur > 0) {
       // FIXME: Idle-at-end
       fprintf(fd, "#!LABEL\tnum\tstart\tend\n");
@@ -638,7 +672,7 @@ void timeR_finish(void) {
     char str[1024];
 
     if (R_isForkedChild) {
-      snprintf(str, 1023, "%s-%d", timeR_output_file, getpid());
+      snprintf(str, 1023, "%s_%d", timeR_output_file, getpid());
     } else {
       strcpy(str, timeR_output_file);
     }
@@ -650,18 +684,16 @@ void timeR_finish(void) {
     timeR_dump(fd);
 
     /* if on parent: combine all child summary files */
-    if (childpid_count) {
-      fprintf(fd, "childcount\t%d\n", childpid_count);
-      for (unsigned int i = 0; i < childpid_count; i++) {
-        sprintf(str, "%s-%ld", timeR_output_file, childpids[i]);
-
-        FILE *childfd = fopen(str, "r");
+    if (childfiles_count) {
+      fprintf(fd, "childcount\t%d\n", childfiles_count);
+      for (unsigned int i = 0; i < childfiles_count; i++) {
+        FILE *childfd = fopen(childfiles[i], "r");
         if (!childfd) {
-          fprintf(stderr, "ERROR: Unable to open %s: %s\n", str, strerror(errno));
-          abort();
+          fprintf(stderr, "WARNING: Unable to open %s: %s\n", childfiles[i], strerror(errno));
+          continue;
         }
 
-        unlink(str);
+        unlink(childfiles[i]);
 
         fprintf(fd, "#!CHILD\t%d\n", i+1);
 
@@ -948,35 +980,20 @@ void timeR_forked(long childpid) {
     }
 
     timeR_reset_all();
-    free(childpids);
-    childpids      = NULL;
-    childpid_max   = 0;
-    childpid_count = 0;
-    gettimeofday(&start_time_us, NULL);
+    for (unsigned int i = 0; i < childfiles_count; i++)
+      free(childfiles[i]);
+    free(childfiles);
+    childfiles       = NULL;
+    childfiles_max   = 0;
+    childfiles_count = 0;
     return;
   }
 
   /* in parent, add child to list of known PIDs */
-  if (childpids == NULL) {
-    childpid_max = 100;
-    childpids = malloc(childpid_max * sizeof(long));
-    if (childpids == NULL) {
-      perror("malloc childpids");
-      abort();
-    }
-  }
-
-  if (childpid_count >= childpid_max) {
-    long *newpids = realloc(childpids, 2*childpid_max*sizeof(long));
-    if (newpids == NULL) {
-      perror("realloc childpids");
-      abort();
-    }
-    childpids = newpids;
-    childpid_max *= 2;
-  }
-
-  childpids[childpid_count++] = childpid;
+  char childfn[1024];
+  childfn[sizeof(childfn)-1] = 0;
+  snprintf(childfn, sizeof(childfn)-1, "%s_%ld", timeR_output_file, childpid);
+  add_childfile(childfn);
 }
 
 void timeR_idlemark(int state) {
@@ -1010,4 +1027,33 @@ void timeR_idlemark(int state) {
 
     in_idle = false;
   }
+}
+
+static unsigned int childcounter = 0;
+
+void timeR_getchildfile(char *buffer) {
+  FILE *fd;
+
+  childcounter++;
+
+  // FIXME: Alternatively check for / at start of path and just prefix getcwd()?
+  /* first create an empty file from our side with the given prefix */
+  sprintf(buffer, "%s_%d", timeR_output_file, childcounter);
+  fd = fopen(buffer, "wb");
+  if (fd == NULL) {
+    perror("create statfile");
+    abort();
+  }
+  fclose(fd);
+
+  /* now we can use realpath to get an absolute path for it */
+  char *rp = realpath(buffer, NULL);
+  if (rp == NULL) {
+    perror("realpath statsfile");
+    abort();
+  }
+  strcpy(buffer, rp);
+  free(rp);
+
+  add_childfile(buffer);
 }

@@ -950,6 +950,8 @@ FUNTAB R_FunTab[] =
 {"La_version",	do_lapack,     	1000,	11,	0,	{PP_FUNCALL, PREC_FN,	0}},
 
 {"traceR_idlemark", do_idlemark,0,     101,     1,      {PP_FUNCALL, PREC_FN,   0}},
+{"traceR_getchildfile",
+                do_getchildfile, 0,      1,     0,      {PP_FUNCALL, PREC_FN,   0}},
 
 {NULL,		NULL,		0,	0,	0,	{PP_INVALID, PREC_FN,	0}},
 };
@@ -1279,4 +1281,15 @@ SEXP do_idlemark(SEXP call, SEXP op, SEXP args, SEXP rho) {
   if (i != NA_LOGICAL)
     timeR_idlemark(!!i);
   return R_NilValue;
+}
+
+SEXP do_getchildfile(SEXP call, SEXP op, SEXP args, SEXP rho) {
+  char childfile[1024];
+
+  checkArity(op, args);
+
+  timeR_getchildfile(childfile);
+
+  SEXP ans = mkString(childfile);
+  return ans;
 }

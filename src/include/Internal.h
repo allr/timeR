@@ -513,5 +513,6 @@ SEXP do_retracemem(SEXP, SEXP, SEXP, SEXP);
 SEXP do_untracemem(SEXP, SEXP, SEXP, SEXP);
 
 SEXP do_idlemark(SEXP, SEXP, SEXP, SEXP);
+SEXP do_getchildfile(SEXP call, SEXP op, SEXP args, SEXP rho);
 
 #endif /* not R_INTERNAL_H */

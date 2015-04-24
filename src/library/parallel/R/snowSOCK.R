@@ -53,15 +53,18 @@ newPSOCKnode <- function(machine = "localhost", ...,
     ## but the current possible values do not need quoting
     cmd <- if(length(rscript_args))
         paste(rscript, paste(rscript_args, collapse = " "),
+              paste0("--timeR-raw=", traceR_getchildfile()),
               "-e", shQuote(arg), env)
-    else paste(rscript, "-e", shQuote(arg), env)
+    else paste(rscript,
+               paste0("--timeR-raw=", traceR_getchildfile()),
+               "-e", shQuote(arg), env)
 
     ## We do redirection of connections at R level once the process is
     ## running.  We could instead do it at C level here, at least on
     ## a Unix-alike.
     renice <- getClusterOption("renice", options)
     if(!is.na(renice) && renice) ## ignore 0
-        cmd <- sprintf("nice +%d %s", as.integer(renice), cmd)
+        cmd <- sprintf("nice -n %d %s", as.integer(renice), cmd)
 
     if (manual) {
         cat("Manually start worker on", machine, "with\n    ", cmd, "\n")
