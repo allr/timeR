@@ -68,8 +68,8 @@ static char *bin_names[] = {
     // dotcode.c
     "dotExternalFull",
     "dotExternal",
-    "dotCallFull",
-    "dotCall",
+    "doDotCall",
+    "RdoDotCall",
     "dotCFull",
     "dotC",
     "dotFortranFull",

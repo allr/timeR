@@ -67,7 +67,7 @@
 /*
  *  R : A Computer Langage for Statistical Data Analysis
  *  Copyright (C) 1995, 1996, 1997  Robert Gentleman and Ross Ihaka
- *  Copyright (C) 1997--2013  The R Core Team
+ *  Copyright (C) 1997--2015  The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -112,6 +112,7 @@
 #define DEBUGMODE 0		/* 1 causes Bison output of parse state, to stdout or stderr */
 
 static Rboolean wCalls = TRUE;
+static Rboolean warnDups = FALSE;
 
 #define YYERROR_VERBOSE 1
 
@@ -135,7 +136,7 @@ typedef struct yyltype
 # define YYLTYPE yyltype
 # define YYLLOC_DEFAULT(Current, Rhs, N)				\
     do									\
-      if ((N))							\
+	if (N)								\
 	{								\
 	  (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;	\
 	  (Current).first_column = YYRHSLOC (Rhs, 1).first_column;	\
@@ -153,7 +154,7 @@ typedef struct yyltype
 	  (Current).first_byte   = (Current).last_byte =		\
 	    YYRHSLOC (Rhs, 0).last_byte;				\
 	}								\
-    while ((0))
+    while (0)
 
 /* Useful defines so editors don't get confused ... */
 
@@ -694,15 +695,15 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   213,   213,   214,   215,   218,   221,   224,   225,   227,
-     228,   229,   230,   231,   232,   233,   234,   235,   236,   237,
-     238,   239,   240,   242,   243,   245,   246,   247,   248,   249,
-     250,   251,   252,   253,   255,   256,   257,   258,   259,   260,
-     261,   262,   263,   264,   265,   266,   267,   268,   269,   270,
-     271,   273,   274,   275,   276,   278,   280,   282,   284,   286,
-     289,   292,   297,   299,   300,   309,   311,   313,   317,   318,
-     320,   322,   326,   327,   329,   332,   334,   336,   338,   340,
-     342,   344,   346,   348,   350,   351,   352,   353,   354,   356
+       0,   214,   214,   215,   216,   219,   222,   225,   226,   228,
+     229,   230,   231,   232,   233,   234,   235,   236,   237,   238,
+     239,   240,   241,   243,   244,   246,   247,   248,   249,   250,
+     251,   252,   253,   254,   256,   257,   258,   259,   260,   261,
+     262,   263,   264,   265,   266,   267,   268,   269,   270,   271,
+     272,   274,   275,   276,   277,   279,   281,   283,   285,   287,
+     290,   293,   298,   300,   301,   310,   312,   314,   318,   319,
+     321,   323,   327,   328,   330,   333,   335,   337,   339,   341,
+     343,   345,   347,   349,   351,   352,   353,   354,   355,   357
 };
 #endif
 
@@ -2153,13 +2154,13 @@ yyreduce:
     {
         case 2:
 
-    { xxsavevalue((yyvsp[-1]), &(yyloc)); UNPROTECT_PTR((yyvsp[-2])); return 0; }
+    { xxsavevalue((yyvsp[-1]), &(yyloc)); UNPROTECT_PTR((yyvsp[-2])); YYACCEPT; }
 
     break;
 
   case 3:
 
-    { xxsavevalue((yyvsp[-1]), &(yyloc)); UNPROTECT_PTR((yyvsp[-2])); return 0; }
+    { xxsavevalue((yyvsp[-1]), &(yyloc)); UNPROTECT_PTR((yyvsp[-2])); YYACCEPT; }
 
     break;
 
@@ -2977,8 +2978,10 @@ static int getDynamicFlag(SEXP item)
 
 static void setDynamicFlag(SEXP item, int flag)
 {
-    if (flag)
-    	setAttrib(item, install("dynamicFlag"), ScalarInteger(flag));
+    if (flag) {
+    	SEXP s_dynamicFlag = install("dynamicFlag");
+    	setAttrib(item, s_dynamicFlag, ScalarInteger(flag));
+    }
 }
 
 static SEXP xxnewlist(SEXP item)
@@ -3104,11 +3107,13 @@ static SEXP xxnewcommand(SEXP cmd, SEXP name, SEXP defn, YYLTYPE *lloc)
     	PROTECT(thedefn = mkString(CHAR(STRING_ELT(thedefn,0))));
     else
     	PROTECT(thedefn = mkString(""));
-    prev = findVar(install(CHAR(STRING_ELT(thename, 0))), parseState.xxMacroList);
-    if (prev != R_UnboundValue && !strcmp(CHAR(STRING_ELT(cmd,0)), "\renewcommand")) {
-        snprintf(buffer, sizeof(buffer), _("Macro '%s' previously defined."), 
+    if (warnDups) {
+	prev = findVar(installChar(STRING_ELT(thename, 0)), parseState.xxMacroList);
+    	if (prev != R_UnboundValue && strcmp(CHAR(STRING_ELT(cmd,0)), "\\renewcommand")) {
+	    snprintf(buffer, sizeof(buffer), _("Macro '%s' previously defined."), 
                  CHAR(STRING_ELT(thename, 0)));
-        yyerror(buffer);
+            yyerror(buffer);
+        }
     }
     for (c = CHAR(STRING_ELT(thedefn, 0)); *c; c++) {
     	if (*c == '#' && isdigit(*(c+1))) 
@@ -3122,7 +3127,7 @@ static SEXP xxnewcommand(SEXP cmd, SEXP name, SEXP defn, YYLTYPE *lloc)
     setAttrib(ans, install("Rd_tag"), cmd);
     setAttrib(ans, install("definition"), thedefn);
     setAttrib(ans, R_SrcrefSymbol, makeSrcref(lloc, SrcFile));
-    defineVar(install(CHAR(STRING_ELT(thename, 0))), ans, parseState.xxMacroList);
+    defineVar(installChar(STRING_ELT(thename, 0)), ans, parseState.xxMacroList);
 
     UNPROTECT_PTR(thedefn);
     UNPROTECT_PTR(cmd);
@@ -3173,7 +3178,8 @@ static SEXP xxusermacro(SEXP macro, SEXP args, YYLTYPE *lloc)
     }
     xxungetc(START_MACRO);
     
-    setAttrib(ans, install("Rd_tag"), mkString("USERMACRO"));
+    SEXP s_Rd_tag = install("Rd_tag");
+    setAttrib(ans, s_Rd_tag, mkString("USERMACRO"));
     setAttrib(ans, R_SrcrefSymbol, makeSrcref(lloc, SrcFile));
 #if DEBUGVALS
     Rprintf(" result: %p\n", ans);
@@ -3292,7 +3298,8 @@ static void xxsavevalue(SEXP Rd, YYLTYPE *lloc)
 
 static SEXP xxtag(SEXP item, int type, YYLTYPE *lloc)
 {
-    setAttrib(item, install("Rd_tag"), mkString(yytname[YYTRANSLATE(type)]));
+    SEXP s_Rd_tag = install("Rd_tag");
+    setAttrib(item, s_Rd_tag, mkString(yytname[YYTRANSLATE(type)]));
     setAttrib(item, R_SrcrefSymbol, makeSrcref(lloc, SrcFile));
     return item;
 }
@@ -3476,8 +3483,10 @@ static SEXP GrowList(SEXP l, SEXP s)
 
 /*--------------------------------------------------------------------------*/
  
-static SEXP ParseRd(ParseStatus *status, SEXP srcfile, Rboolean fragment)
+static SEXP ParseRd(ParseStatus *status, SEXP srcfile, Rboolean fragment, SEXP macros)
 {
+    Rboolean keepmacros = !isLogical(macros) || asLogical(macros);
+    
     R_ParseContextLast = 0;
     R_ParseContext[0] = '\0';
     
@@ -3501,12 +3510,20 @@ static SEXP ParseRd(ParseStatus *status, SEXP srcfile, Rboolean fragment)
     if (fragment) parseState.xxinitvalue = STARTFRAGMENT;
     else	  parseState.xxinitvalue = STARTFILE;
     
-    parseState.xxMacroList = InstallKeywords();
+    if (!isEnvironment(macros))
+	macros = InstallKeywords();
+	
+    PROTECT(macros);
+    PROTECT(parseState.xxMacroList = R_NewHashedEnv(macros, ScalarInteger(0)));
+    UNPROTECT_PTR(macros);
     
     parseState.Value = R_NilValue;
     
     if (yyparse()) *status = PARSE_ERROR;
     else *status = PARSE_OK;
+    
+    if (keepmacros && !isNull(parseState.Value))
+	setAttrib(parseState.Value, install("macros"), parseState.xxMacroList);
 
 #if DEBUGVALS
     Rprintf("ParseRd result: %p\n", parseState.Value);    
@@ -3534,11 +3551,11 @@ static int con_getc(void)
 }
 
 static
-SEXP R_ParseRd(Rconnection con, ParseStatus *status, SEXP srcfile, Rboolean fragment)
+SEXP R_ParseRd(Rconnection con, ParseStatus *status, SEXP srcfile, Rboolean fragment, SEXP macros)
 {
     con_parse = con;
     ptr_getc = con_getc;
-    return ParseRd(status, srcfile, fragment);
+    return ParseRd(status, srcfile, fragment, macros);
 }
 
 /*----------------------------------------------------------------------------
@@ -3724,6 +3741,7 @@ static SEXP InstallKeywords()
     	defineVar(name, val, result);
     	UNPROTECT(2);
     }
+    UNPROTECT(1);
     return result;
 }
     	
@@ -3738,7 +3756,10 @@ static SEXP UserMacroLookup(const char *s)
 {
     SEXP rec = findVar(install(s), parseState.xxMacroList);
     if (rec == R_UnboundValue) error(_("Unable to find macro %s"), s);
-    return getAttrib(rec, install("definition"));
+    PROTECT(rec);
+    SEXP res = getAttrib(rec, install("definition"));
+    UNPROTECT(1);
+    return res;
 }
 
 static void yyerror(const char *s)
@@ -4328,7 +4349,7 @@ static void PopState() {
 
 /* "do_parseRd" 
 
- .External2(C_parseRd,file, srcfile, encoding, verbose, basename, warningCalls)
+ .External2(C_parseRd,file, srcfile, encoding, verbose, basename, warningCalls, macros, warndups)
  If there is text then that is read and the other arguments are ignored.
 */
 
@@ -4342,6 +4363,7 @@ SEXP C_parseRd(SEXP call, SEXP op, SEXP args, SEXP env)
     int ifile, wcall;
     ParseStatus status;
     RCNTXT cntxt;
+    SEXP macros;
 
 #if DEBUGMODE
     yydebug = 1;
@@ -4364,10 +4386,12 @@ SEXP C_parseRd(SEXP call, SEXP op, SEXP args, SEXP env)
     parseState.xxDebugTokens = asInteger(CAR(args));		args = CDR(args);
     parseState.xxBasename = CHAR(STRING_ELT(CAR(args), 0));	args = CDR(args);
     fragment = asLogical(CAR(args));				args = CDR(args);
-    wcall = asLogical(CAR(args));
+    wcall = asLogical(CAR(args));				args = CDR(args);
     if (wcall == NA_LOGICAL)
     	error(_("invalid '%s' value"), "warningCalls");
     wCalls = wcall;
+    macros = CAR(args);						args = CDR(args);
+    warnDups = asLogical(CAR(args));
 
     if (ifile >= 3) {/* file != "" */
 	if(!wasopen) {
@@ -4379,7 +4403,7 @@ SEXP C_parseRd(SEXP call, SEXP op, SEXP args, SEXP env)
 	    cntxt.cenddata = con;
 	}
 	if(!con->canread) error(_("cannot read from this connection"));
-	s = R_ParseRd(con, &status, source, fragment);
+	s = R_ParseRd(con, &status, source, fragment, macros);
 	if(!wasopen) endcontext(&cntxt);
 	PopState();
 	if (status != PARSE_OK) parseError(call, R_ParseError);

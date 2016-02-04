@@ -23,10 +23,10 @@ INT_HEADERS = Defn.h Errormsg.h Fileio.h Graphics.h GraphicsBase.h \
 @WANT_TIME_R_TRUE@ INT_HEADERS += timeR-config.h timeR-posix.h timeR-rdtscp.h timeR-rdtsc.h
 
 DISTFILES = Makefile.in Makefile.win $(INT_HEADERS) $(SRC_HEADERS) \
-  config.h.in stamp-h.in Rmath.h0.in memcheck.h valgrind.h
+  config.h.in stamp-h.in Rmath.h0.in
 
 SUBDIRS = R_ext
-SUBDIRS_WITH_NO_BUILD = Rmodules
+SUBDIRS_WITH_NO_BUILD = Rmodules vg
 
 TIMESTAMPS = $(SRC_HEADERS:.h=.ts) $(OBJ_HEADERS:.h=.tsa)
 

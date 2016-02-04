@@ -558,10 +558,14 @@ is started immediately after the by-call-method timer is started.
     These two timers measure the time of external code called using
     the ".External" function.
 
--   dotCallFull / dotCall
+-   doDotCall / RdoDotCall
 
     These two timers measure the time of external code called using
-    the ".Call" function.
+    the ".Call" function. The first one measures the function that
+    does the symbol lookup, the second one measures the function that
+    does the actual call. The latter function is sometimes called
+    directly without a function lookup when byte-compiled R code is
+    used.
 
 -   dotCFull / dotC
 
