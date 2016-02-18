@@ -2200,7 +2200,7 @@ SEXP attribute_hidden evalList(SEXP el, SEXP rho, SEXP call, int n)
 	     *	the list of resulting values into the return value.
 	     * Anything else bound to a ... symbol is an error
 	     */
-	    h = findVar(CAR(el), rho);
+	    PROTECT(h = findVar(CAR(el), rho));
 	    if (TYPEOF(h) == DOTSXP || h == R_NilValue) {
 		while (h != R_NilValue) {
 		    ev = CONS_NR(eval(CAR(h), rho), R_NilValue);
@@ -2215,6 +2215,7 @@ SEXP attribute_hidden evalList(SEXP el, SEXP rho, SEXP call, int n)
 	    }
 	    else if (h != R_MissingArg)
 		error(_("'...' used in an incorrect context"));
+	    UNPROTECT(1); /* h */
 	} else if (CAR(el) == R_MissingArg) {
 	    /* It was an empty element: most likely get here from evalArgs
 	       which may have been called on part of the args. */
@@ -2275,16 +2276,18 @@ SEXP attribute_hidden evalListKeepMissing(SEXP el, SEXP rho)
 	 * Anything else bound to a ... symbol is an error
 	*/
 	if (CAR(el) == R_DotsSymbol) {
-	    h = findVar(CAR(el), rho);
+	    PROTECT(h = findVar(CAR(el), rho));
 	    if (TYPEOF(h) == DOTSXP || h == R_NilValue) {
 		while (h != R_NilValue) {
 		    if (CAR(h) == R_MissingArg)
 			ev = CONS_NR(R_MissingArg, R_NilValue);
 		    else
 			ev = CONS_NR(eval(CAR(h), rho), R_NilValue);
-		    if (head==R_NilValue)
+		    if (head == R_NilValue) {
+			UNPROTECT(1); /* h */
 			PROTECT(head = ev);
-		    else
+			PROTECT(h);
+		    } else
 			SETCDR(tail, ev);
 		    COPY_TAG(ev, h);
 		    tail = ev;
@@ -2293,6 +2296,7 @@ SEXP attribute_hidden evalListKeepMissing(SEXP el, SEXP rho)
 	    }
 	    else if(h != R_MissingArg)
 		error(_("'...' used in an incorrect context"));
+	    UNPROTECT(1); /* h */
 	}
 	else {
 	    if (CAR(el) == R_MissingArg ||
@@ -2342,7 +2346,7 @@ SEXP attribute_hidden promiseArgs(SEXP el, SEXP rho)
 	/* Is this double promise mechanism really needed? */
 
 	if (CAR(el) == R_DotsSymbol) {
-	    h = findVar(CAR(el), rho);
+	    PROTECT(h = findVar(CAR(el), rho));
 	    if (TYPEOF(h) == DOTSXP || h == R_NilValue) {
 		while (h != R_NilValue) {
 		    SETCDR(tail, CONS(mkPROMISE(CAR(h), rho), R_NilValue));
@@ -2353,6 +2357,7 @@ SEXP attribute_hidden promiseArgs(SEXP el, SEXP rho)
 	    }
 	    else if (h != R_MissingArg)
 		error(_("'...' used in an incorrect context"));
+	    UNPROTECT(1); /* h */
 	}
 	else if (CAR(el) == R_MissingArg) {
 	    SETCDR(tail, CONS(R_MissingArg, R_NilValue));
@@ -2906,13 +2911,14 @@ int DispatchGroup(const char* group, SEXP call, SEXP op, SEXP args, SEXP rho,
 
     generic = PRIMNAME(op);
 
-    lclass = classForGroupDispatch(CAR(args));
+    PROTECT(lclass = classForGroupDispatch(CAR(args)));
 
     if( nargs == 2 )
 	rclass = classForGroupDispatch(CADR(args));
     else
 	rclass = R_NilValue;
 
+    PROTECT(rclass);
     lsxp = R_NilValue; lgr = R_NilValue; lmeth = R_NilValue;
     rsxp = R_NilValue; rgr = R_NilValue; rmeth = R_NilValue;
 
@@ -2929,7 +2935,7 @@ int DispatchGroup(const char* group, SEXP call, SEXP op, SEXP args, SEXP rho,
     PROTECT(rgr);
 
     if( !isFunction(lsxp) && !isFunction(rsxp) ) {
-	UNPROTECT(2);
+	UNPROTECT(4);
 	return 0; /* no generic or group method so use default */
     }
 
@@ -2948,7 +2954,7 @@ int DispatchGroup(const char* group, SEXP call, SEXP op, SEXP args, SEXP rho,
 	    else {
 		warning(_("Incompatible methods (\"%s\", \"%s\") for \"%s\""),
 			lname, rname, generic);
-		UNPROTECT(2);
+		UNPROTECT(4);
 		return 0;
 	    }
 	}
@@ -3003,7 +3009,7 @@ int DispatchGroup(const char* group, SEXP call, SEXP op, SEXP args, SEXP rho,
     }
 
     *ans = applyClosure(t, lsxp, s, rho, newvars);
-    UNPROTECT(8);
+    UNPROTECT(10);
     return 1;
 }
 
@@ -4183,9 +4189,11 @@ static R_INLINE SEXP getvar(SEXP symbol, SEXP rho,
 	UNBOUND_VARIABLE_ERROR(symbol);
     else if (value == R_MissingArg)
 	MAYBE_MISSING_ARGUMENT_ERROR(symbol, keepmiss);
-    else if (TYPEOF(value) == PROMSXP)
+    else if (TYPEOF(value) == PROMSXP) {
+	PROTECT(value);
 	value = FORCE_PROMISE(value, symbol, rho, keepmiss);
-    else if (NAMED(value) == 0 && value != R_NilValue)
+	UNPROTECT(1);
+    } else if (NAMED(value) == 0 && value != R_NilValue)
 	SET_NAMED(value, 1);
     return value;
 }
