@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, a copy is available at
- *  http://www.r-project.org/Licenses/
+ *  https://www.R-project.org/Licenses/
  *
  *
  *
@@ -1347,7 +1347,7 @@ findVar1mode(SEXP symbol, SEXP rho, SEXPTYPE mode, int inherits,
 
 
 /*
-   ddVal:
+   ddVal ("dot-dot-value"):
    a function to take a name and determine if it is of the form
    ..x where x is an integer; if so x is returned otherwise 0 is returned
 */
@@ -2989,7 +2989,7 @@ int envlength(SEXP rho)
 	    R_ExternalPtrAddr(HASHTAB(rho));
         return (int) xlength(tb->objects(tb));
     } else if( HASHTAB(rho) != R_NilValue)
-        return HashTableSize(HASHTAB(rho), 1);       
+        return HashTableSize(HASHTAB(rho), 1);
     else
 	return FrameSize(FRAME(rho), 1);
 }
@@ -3892,7 +3892,7 @@ SEXP mkCharLenCE(const char *name, int len, cetype_t enc)
 	if (TYPEOF(val) != CHARSXP) break; /* sanity check */
 	if (need_enc == (ENC_KNOWN(val) | IS_BYTES(val)) &&
 	    LENGTH(val) == len &&  /* quick pretest */
-	    memcmp(CHAR(val), name, len) == 0) {
+	    (!len || (memcmp(CHAR(val), name, len) == 0))) { // called with len = 0
 	    cval = val;
 	    break;
 	}
@@ -4006,7 +4006,8 @@ void do_write_cache()
 SEXP topenv(SEXP target, SEXP envir) {
     SEXP env = envir;
     while (env != R_EmptyEnv) {
-	if (env == target || env == R_GlobalEnv || env == R_BaseNamespace ||
+	if (env == target || env == R_GlobalEnv ||
+	    env == R_BaseEnv || env == R_BaseNamespace ||
 	    R_IsPackageEnv(env) || R_IsNamespaceEnv(env) ||
 	    existsVarInFrame(env, R_dot_packageName)) {
 	    return env;
@@ -4026,8 +4027,8 @@ SEXP topenv(SEXP target, SEXP envir) {
 SEXP attribute_hidden do_topenv(SEXP call, SEXP op, SEXP args, SEXP rho) {
     checkArity(op, args);
     SEXP envir = CAR(args);
-    SEXP target = CADR(args); // = matchThisEnv
-    if (TYPEOF(envir) != ENVSXP) envir = rho; // target = parent.frame()
+    SEXP target = CADR(args); // = matchThisEnv, typically NULL (R_NilValue)
+    if (TYPEOF(envir) != ENVSXP) envir = rho; // envir = parent.frame()
     if (target != R_NilValue && TYPEOF(target) != ENVSXP)  target = R_NilValue;
     return topenv(target, envir);
 }
