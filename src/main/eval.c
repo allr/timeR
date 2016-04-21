@@ -884,7 +884,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedvars)
 {
     SEXP formals, actuals, savedrho;
     volatile SEXP body, newrho;
-    SEXP f, a, tmp;
+    SEXP f, a, tmp, savesrc;
     RCNTXT cntxt;
 
     /* formals = list of formal parameters */
@@ -974,6 +974,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedvars)
 	the generic as the sysparent of the method because the method
 	is a straight substitution of the generic.  */
 
+    PROTECT(savesrc = R_Srcref);
     if( R_GlobalContext->callflag == CTXT_GENERIC )
 	begincontext(&cntxt, CTXT_RETURN, call,
 		     newrho, R_GlobalContext->sysparent, arglist, op);
@@ -1071,6 +1072,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedvars)
 	PROTECT(tmp = eval(body, newrho));
     }
     cntxt.returnValue = tmp; /* make it available to on.exit */
+    R_Srcref = savesrc;
     endcontext(&cntxt);
 
     END_RFUNC_TIMER(timeR_bin_id);
@@ -1078,7 +1080,7 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedvars)
 	Rprintf("exiting from: ");
 	PrintCall(call, rho);
     }
-    UNPROTECT(3);
+    UNPROTECT(4);
     return (tmp);
 }
 
@@ -5852,7 +5854,7 @@ static SEXP bcEval(SEXP body, SEXP rho, Rboolean useCache)
 	  /* duplicate arguments and protect */
 	  PROTECT(args = duplicate(CDR(call)));
 	  /* insert evaluated promise for LHS as first argument */
-	  /* promise won't be captured so don't track refrences */
+	  /* promise won't be captured so don't track references */
 	  prom = R_mkEVPROMISE_NR(R_TmpvalSymbol, lhs);
 	  SETCAR(args, prom);
 	  /* insert evaluated promise for RHS as last argument */
