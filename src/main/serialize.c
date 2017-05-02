@@ -855,7 +855,7 @@ OutIntegerVec(R_outpstream_t stream, SEXP s, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(int)];
+	static char buf[CHUNK_SIZE * sizeof(int)];
 	R_xlen_t done, this;
 	XDR xdrs;
 	for (done = 0; done < length; done += this) {
@@ -892,10 +892,10 @@ OutRealVec(R_outpstream_t stream, SEXP s, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(double)];
+	static char buf[CHUNK_SIZE * sizeof(double)];
 	R_xlen_t done, this;
 	XDR xdrs;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    xdrmem_create(&xdrs, buf, (int)(this * sizeof(double)), XDR_ENCODE);
 	    for(int cnt = 0; cnt < this; cnt++)
@@ -909,7 +909,7 @@ OutRealVec(R_outpstream_t stream, SEXP s, R_xlen_t length)
     case R_pstream_binary_format:
     {
 	R_xlen_t done, this;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->OutBytes(stream, REAL(s) + done,
 			     (int)(sizeof(double) * this));
@@ -928,11 +928,11 @@ OutComplexVec(R_outpstream_t stream, SEXP s, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(Rcomplex)];
+	static char buf[CHUNK_SIZE * sizeof(Rcomplex)];
 	R_xlen_t done, this;
 	XDR xdrs;
 	Rcomplex *c = COMPLEX(s);
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    xdrmem_create(&xdrs, buf, (int)(this * sizeof(Rcomplex)), XDR_ENCODE);
 	    for(int cnt = 0; cnt < this; cnt++) {
@@ -948,7 +948,7 @@ OutComplexVec(R_outpstream_t stream, SEXP s, R_xlen_t length)
     case R_pstream_binary_format:
     {
 	R_xlen_t done, this;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->OutBytes(stream, COMPLEX(s) + done,
 			     (int)(sizeof(Rcomplex) * this));
@@ -1405,10 +1405,10 @@ InIntegerVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(int)];
+	static char buf[CHUNK_SIZE * sizeof(int)];
 	R_xlen_t done, this;
 	XDR xdrs;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->InBytes(stream, buf, (int)(sizeof(int) * this));
 	    xdrmem_create(&xdrs, buf, (int)(this * sizeof(int)), XDR_DECODE);
@@ -1422,7 +1422,7 @@ InIntegerVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     case R_pstream_binary_format:
     {
 	R_xlen_t done, this;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->InBytes(stream, INTEGER(obj) + done,
 			    (int)(sizeof(int) * this));
@@ -1441,10 +1441,10 @@ InRealVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(double)];
+	static char buf[CHUNK_SIZE * sizeof(double)];
 	R_xlen_t done, this;
 	XDR xdrs;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->InBytes(stream, buf, (int)(sizeof(double) * this));
 	    xdrmem_create(&xdrs, buf, (int)(this * sizeof(double)), XDR_DECODE);
@@ -1458,7 +1458,7 @@ InRealVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     case R_pstream_binary_format:
     {
 	R_xlen_t done, this;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->InBytes(stream, REAL(obj) + done,
 			    (int)(sizeof(double) * this));
@@ -1477,7 +1477,7 @@ InComplexVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     switch (stream->type) {
     case R_pstream_xdr_format:
     {
-        static char buf[CHUNK_SIZE * sizeof(Rcomplex)];
+	static char buf[CHUNK_SIZE * sizeof(Rcomplex)];
 	R_xlen_t done, this;
 	XDR xdrs;
 	Rcomplex *output = COMPLEX(obj);
@@ -1497,7 +1497,7 @@ InComplexVec(R_inpstream_t stream, SEXP obj, R_xlen_t length)
     case R_pstream_binary_format:
     {
 	R_xlen_t done, this;
-        for (done = 0; done < length; done += this) {
+	for (done = 0; done < length; done += this) {
 	    this = min2(CHUNK_SIZE, length - done);
 	    stream->InBytes(stream, COMPLEX(obj) + done,
 			    (int)(sizeof(Rcomplex) * this));
@@ -1578,7 +1578,7 @@ static SEXP ReadItem (SEXP ref_table, R_inpstream_t stream)
 	AddReadRef(ref_table, s);
 	return s;
     case SYMSXP:
-        R_ReadItemDepth++;
+	R_ReadItemDepth++;
 	PROTECT(s = ReadItem(ref_table, stream)); /* print name */
 	R_ReadItemDepth--;
 	s = installChar(s);
@@ -1868,7 +1868,7 @@ static SEXP ReadBCLang(int type, SEXP ref_table, SEXP reps,
 	    PROTECT(ans = allocSExp(type));
 	    if (pos >= 0)
 		SET_VECTOR_ELT(reps, pos, ans);
-            R_ReadItemDepth++;
+	    R_ReadItemDepth++;
 	    if (hasattr)
 		SET_ATTRIB(ans, ReadItem(ref_table, stream));
 	    SET_TAG(ans, ReadItem(ref_table, stream));
@@ -1883,10 +1883,10 @@ static SEXP ReadBCLang(int type, SEXP ref_table, SEXP reps,
     default:
 	{
 	    R_ReadItemDepth++;
-            SEXP res = ReadItem(ref_table, stream);
-            R_ReadItemDepth--;
-            return res;
-        }
+	    SEXP res = ReadItem(ref_table, stream);
+	    R_ReadItemDepth--;
+	    return res;
+	}
     }
 }
 
