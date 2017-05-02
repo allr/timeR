@@ -2296,8 +2296,11 @@ SEXP attribute_hidden evalList(SEXP el, SEXP rho, SEXP call, int n)
 	    if (TYPEOF(h) == DOTSXP || h == R_NilValue) {
 		while (h != R_NilValue) {
 		    ev = CONS_NR(eval(CAR(h), rho), R_NilValue);
-		    if (head==R_NilValue)
+		    if (head==R_NilValue) {
+			UNPROTECT(1); /* h */
 			PROTECT(head = ev);
+			PROTECT(h); /* put current h on top of protect stack */
+		    }
 		    else
 			SETCDR(tail, ev);
 		    COPY_TAG(ev, h);
@@ -4126,6 +4129,10 @@ SEXP R_ClosureExpr(SEXP p)
 #ifdef THREADED_CODE
 typedef union { void *v; int i; } BCODE;
 
+/* Declare opinfo volatile to prevent gcc 6 from making a local copy
+   in bcEval stack frames and thus increasing stack usage
+   dramatically */
+volatile
 static struct { void *addr; int argc; } opinfo[OPCOUNT];
 
 #define OP(name,n) \
@@ -6246,6 +6253,7 @@ SEXP R_bcEncode(SEXP bytes)
     }
     else {
 	code = allocVector(INTSXP, m * n);
+	memset(INTEGER(code), 0, m * n * sizeof(int));
 	pc = (BCODE *) INTEGER(code);
 
 	for (i = 0; i < n; i++) pc[i].i = ipc[i];
