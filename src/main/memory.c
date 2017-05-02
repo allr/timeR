@@ -1,7 +1,7 @@
 /*
  *  R : A Computer Language for Statistical Data Analysis
  *  Copyright (C) 1995, 1996  Robert Gentleman and Ross Ihaka
- *  Copyright (C) 1998--2015  The R Core Team.
+ *  Copyright (C) 1998--2016  The R Core Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,11 +29,11 @@
 
 #define USE_RINTERNALS
 
-#include <stdarg.h>
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include <stdarg.h>
 
 #include <R_ext/RS.h> /* for S4 allocation */
 #include <R_ext/Print.h>
@@ -731,6 +731,22 @@ static R_size_t R_NodesInUse = 0;
 #define NO_FREE_NODES() (R_NodesInUse >= R_NSize)
 #define GET_FREE_NODE(s) CLASS_GET_FREE_NODE(0,s)
 
+/* versions that assume nodes are avaialble without adding a new page */
+#define CLASS_QUICK_GET_FREE_NODE(c,s) do {		\
+	SEXP __n__ = R_GenHeap[c].Free;			\
+	if (__n__ == R_GenHeap[c].New)			\
+	    error("need new page - should not happen");	\
+	R_GenHeap[c].Free = NEXT_NODE(__n__);		\
+	R_NodesInUse++;					\
+	(s) = __n__;					\
+    } while (0)
+
+#define QUICK_GET_FREE_NODE(s) CLASS_QUICK_GET_FREE_NODE(0,s)
+
+/* QUICK versions can be used if (CLASS_)NEED_NEW_PAGE returns FALSE */
+#define CLASS_NEED_NEW_PAGE(c) (R_GenHeap[c].Free == R_GenHeap[c].New)
+#define NEED_NEW_PAGE() CLASS_NEED_NEW_PAGE(0)
+
 
 /* Debugging Routines. */
 
@@ -1396,6 +1412,10 @@ static Rboolean RunFinalizers(void)
 	    saveToplevelContext = R_ToplevelContext;
 	    PROTECT(topExp = R_CurrentExpr);
 	    savestack = R_PPStackTop;
+	    /* The value of 'next' is protected to make it safe
+	       for this routine to be called recursively from a
+	       gc triggered by a finalizer. */
+	    PROTECT(next);
             MARK_TIMER();
 	    if (! SETJMP(thiscontext.cjmpbuf)) {
 		R_GlobalContext = R_ToplevelContext = &thiscontext;
@@ -1408,15 +1428,12 @@ static Rboolean RunFinalizers(void)
 		    R_weak_refs = next;
 		else
 		    SET_WEAKREF_NEXT(last, next);
-		/* The value of 'next' is protected to make is safe
-		   for thsis routine to be called recursively from a
-		   gc triggered by a finalizer. */
-		PROTECT(next);
 		R_RunWeakRefFinalizer(s);
-		UNPROTECT(1);
-	    } else
-              RELEASE_TIMER();
+	    } else {
+                RELEASE_TIMER();
+	    }
 	    endcontext(&thiscontext);
+	    UNPROTECT(1); /* next */
 	    R_ToplevelContext = saveToplevelContext;
 	    R_PPStackTop = savestack;
 	    R_CurrentExpr = topExp;
@@ -2249,7 +2266,16 @@ SEXP cons(SEXP car, SEXP cdr)
 	if (NO_FREE_NODES())
 	    mem_err_cons();
     }
-    GET_FREE_NODE(s);
+
+    if (NEED_NEW_PAGE()) {
+	PROTECT(car);
+	PROTECT(cdr);
+	GET_FREE_NODE(s);
+	UNPROTECT(2);
+    }
+    else
+	QUICK_GET_FREE_NODE(s);
+
     s->sxpinfo = UnmarkedNodeTemplate.sxpinfo;
     INIT_REFCNT(s);
     TYPEOF(s) = LISTSXP;
@@ -2273,7 +2299,16 @@ SEXP CONS_NR(SEXP car, SEXP cdr)
 	if (NO_FREE_NODES())
 	    mem_err_cons();
     }
-    GET_FREE_NODE(s);
+
+    if (NEED_NEW_PAGE()) {
+	PROTECT(car);
+	PROTECT(cdr);
+	GET_FREE_NODE(s);
+	UNPROTECT(2);
+    }
+    else
+	QUICK_GET_FREE_NODE(s);
+
     s->sxpinfo = UnmarkedNodeTemplate.sxpinfo;
     INIT_REFCNT(s);
     DISABLE_REFCNT(s);
@@ -2317,7 +2352,17 @@ SEXP NewEnvironment(SEXP namelist, SEXP valuelist, SEXP rho)
 	if (NO_FREE_NODES())
 	    mem_err_cons();
     }
-    GET_FREE_NODE(newrho);
+
+    if (NEED_NEW_PAGE()) {
+	PROTECT(namelist);
+	PROTECT(valuelist);
+	PROTECT(rho);
+	GET_FREE_NODE(newrho);
+	UNPROTECT(3);
+    }
+    else
+	QUICK_GET_FREE_NODE(newrho);
+
     newrho->sxpinfo = UnmarkedNodeTemplate.sxpinfo;
     INIT_REFCNT(newrho);
     TYPEOF(newrho) = ENVSXP;
@@ -2349,7 +2394,16 @@ SEXP attribute_hidden mkPROMISE(SEXP expr, SEXP rho)
 	if (NO_FREE_NODES())
 	    mem_err_cons();
     }
-    GET_FREE_NODE(s);
+
+    if (NEED_NEW_PAGE()) {
+	PROTECT(expr);
+	PROTECT(rho);
+	GET_FREE_NODE(s);
+	UNPROTECT(2);
+    }
+    else
+	QUICK_GET_FREE_NODE(s);
+
     /* precaution to ensure code does not get modified via
        substitute() and the like */
     if (NAMED(expr) < 2) SET_NAMED(expr, 2);
